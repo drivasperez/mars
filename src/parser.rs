@@ -35,6 +35,20 @@ fn line(i: &str) -> IResult<&str, Line> {
     Ok((i, l))
 }
 
+fn replace_definitions<'a>(s: &'a str) -> Result<String, Box<dyn std::error::Error + 'a>> {
+    let (_, ls) = lines(s)?;
+
+    let mut replaced = String::from(s);
+
+    for line in ls {
+        if let Line::Definition(label, def) = line {
+            replaced = replaced.replace(label, def);
+        }
+    }
+
+    Ok(replaced)
+}
+
 fn lines(i: &str) -> IResult<&str, Vec<Line>> {
     let (i, ls) = nom::multi::separated_list(character::multispace1, line)(i)?;
     let (i, _) = nom::combinator::opt(bytes::tag_no_case("END"))(i)?;
@@ -578,6 +592,62 @@ mod test {
         let (i, res) = org_statement("    ORG   flip").unwrap();
         assert_eq!(i, "");
         assert_eq!(res, vec![ExpressionListItem::TermItem(Term::Label("flip"))]);
+    }
+
+    #[test]
+    fn test_replace_definitions() {
+        let replaced = replace_definitions(
+            ";redcode
+     
+ ;name          Dwarf
+ ;author        A. K. Dewdney
+ ;version       94.1
+ ;date          April 29, 1993
+ 
+ ;strategy      Bombs every fourth instruction.
+ 
+         ORG     start              ; Indicates the instruction with
+                                    ; the label 'start' should be the
+                                    ; first to execute.
+ 
+ step    EQU      4                 ; Replaces all occurrences of 'step'
+                                    ; with the character '4'.
+ 
+ target  DAT.F   #0,     #0         ; Pointer to target instruction.
+ start   ADD.AB  #step,   target    ; Increments pointer by step.
+         MOV.AB  #0,     @target    ; Bombs target instruction.
+         JMP.A    start             ; Same as JMP.A -2.  Loops back to
+                                    ; the instruction labelled 'start'.
+         END",
+        )
+        .unwrap();
+
+        assert_eq!(
+            &replaced,
+            ";redcode
+     
+ ;name          Dwarf
+ ;author        A. K. Dewdney
+ ;version       94.1
+ ;date          April 29, 1993
+ 
+ ;strategy      Bombs every fourth instruction.
+ 
+         ORG     start              ; Indicates the instruction with
+                                    ; the label 'start' should be the
+                                    ; first to execute.
+ 
+ 4                     EQU      4                 ; Replaces all occurrences of '4                 '
+                                    ; with the character '4'.
+ 
+ target  DAT.F   #0,     #0         ; Pointer to target instruction.
+ start   ADD.AB  #4                 ,   target    ; Increments pointer by 4                 .
+         MOV.AB  #0,     @target    ; Bombs target instruction.
+         JMP.A    start             ; Same as JMP.A -2.  Loops back to
+                                    ; the instruction labelled 'start'.
+         END"
+        );
+        assert!(lines(&replaced).is_ok());
     }
 
     #[test]
