@@ -4,6 +4,14 @@ use nom::bytes::complete as bytes;
 use nom::character::complete as character;
 use nom::IResult;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Line<'a> {
+    Instruction(Instruction<'a>),
+    Comment(&'a str),
+    OrgStatement(Expression<'a>),
+    Definition(&'a str, &'a str),
+}
+
 fn line(i: &str) -> IResult<&str, Line> {
     use nom::combinator::peek;
     let (i, _) = character::space0(i)?;
@@ -33,15 +41,15 @@ fn lines(i: &str) -> IResult<&str, Vec<Line>> {
     Ok((i, ls))
 }
 
-fn definition(i: &str) -> IResult<&str, (&str, Expression)> {
+fn definition(i: &str) -> IResult<&str, (&str, &str)> {
     let (i, label) = label(i)?;
     let (i, _) = nom::combinator::recognize(nom::sequence::tuple((
         character::space1,
         bytes::tag_no_case("EQU"),
         character::space1,
     )))(i)?;
-    let (i, expression) = expr(i)?;
-    let (i, _) = nom::combinator::opt(nom::sequence::preceded(character::space0, comment))(i)?;
+    let (i, expression) = bytes::take_till(|c| c == ';' || c == '\n' || c == '\r')(i)?;
+    let (i, _) = nom::combinator::opt(comment)(i)?;
 
     Ok((i, (label, expression)))
 }
@@ -536,28 +544,22 @@ mod test {
     fn parse_definition() {
         let (i, res) = definition("step   EQU 4").unwrap();
         assert_eq!(i, "");
-        assert_eq!(
-            res,
-            ("step", vec![ExpressionListItem::TermItem(Term::Number(4))])
-        );
+        assert_eq!(res, ("step", "4"));
 
-        let (i, res) = definition("step   EQU blah + 4 / 2 * something").unwrap();
+        let (i, res) = definition(
+            "step   EQU blah + 4 / 2 * something ; here is a comment about this definition",
+        )
+        .unwrap();
         assert_eq!(i, "");
-        assert_eq!(
-            res,
-            (
-                "step",
-                vec![
-                    ExpressionListItem::TermItem(Term::Label("blah")),
-                    ExpressionListItem::Operation(NumericOperation::Add),
-                    ExpressionListItem::TermItem(Term::Number(4)),
-                    ExpressionListItem::Operation(NumericOperation::Divide),
-                    ExpressionListItem::TermItem(Term::Number(2)),
-                    ExpressionListItem::Operation(NumericOperation::Multiply),
-                    ExpressionListItem::TermItem(Term::Label("something"))
-                ]
-            )
-        );
+        assert_eq!(res, ("step", "blah + 4 / 2 * something "));
+
+        let (i, res) = definition(
+            "b33    EQU      4                 ; Replaces all occurrences of 'step'
+",
+        )
+        .unwrap();
+        assert_eq!(res, ("b33", "4                 "));
+        assert_eq!(i, "\n")
     }
 
     #[test]
@@ -618,7 +620,7 @@ mod test {
                 Line::OrgStatement(vec![ExpressionListItem::TermItem(Term::Label("start"))]),
                 Line::Comment("; the label \'start\' should be the"),
                 Line::Comment("; first to execute."),
-                Line::Definition("step", vec![ExpressionListItem::TermItem(Term::Number(4))]),
+                Line::Definition("step", "4                 "),
                 Line::Comment("; with the character \'4\'."),
                 Line::Instruction(Instruction {
                     label_list: vec!["target"],

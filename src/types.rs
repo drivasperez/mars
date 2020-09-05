@@ -56,14 +56,6 @@ pub struct Address<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Line<'a> {
-    Instruction(Instruction<'a>),
-    Definition(&'a str, Expression<'a>),
-    Comment(&'a str),
-    OrgStatement(Expression<'a>),
-}
-
-#[derive(Debug, PartialEq, Eq)]
 pub struct Operation {
     pub opcode: Opcode,
     pub modifier: Modifier,
