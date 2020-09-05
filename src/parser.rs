@@ -42,7 +42,7 @@ fn replace_definitions<'a>(s: &'a str) -> Result<String, Box<dyn std::error::Err
 
     for line in ls {
         if let Line::Definition(label, def) = line {
-            replaced = replaced.replace(label, def);
+            replaced = replaced.replace(label, def.trim());
         }
     }
 
@@ -637,11 +637,11 @@ mod test {
                                     ; the label 'start' should be the
                                     ; first to execute.
  
- 4                     EQU      4                 ; Replaces all occurrences of '4                 '
+ 4    EQU      4                 ; Replaces all occurrences of '4'
                                     ; with the character '4'.
  
  target  DAT.F   #0,     #0         ; Pointer to target instruction.
- start   ADD.AB  #4                 ,   target    ; Increments pointer by 4                 .
+ start   ADD.AB  #4,   target    ; Increments pointer by 4.
          MOV.AB  #0,     @target    ; Bombs target instruction.
          JMP.A    start             ; Same as JMP.A -2.  Loops back to
                                     ; the instruction labelled 'start'.
