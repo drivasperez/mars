@@ -1,81 +1,61 @@
+use crate::types::*;
 use nom::branch;
 use nom::bytes::complete as bytes;
 use nom::character::complete as character;
 use nom::IResult;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Opcode {
-    Dat,
-    Mov,
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    Jmp,
-    Jmz,
-    Jmn,
-    Djn,
-    Slt,
-    Seq,
-    Sne,
-    Spl,
-    Nop,
+fn line(i: &str) -> IResult<&str, Line> {
+    use nom::combinator::peek;
+    let (i, _) = character::space0(i)?;
+
+    let (i, l) = if peek(definition)(i).is_ok() {
+        let (i, (s, e)) = definition(i)?;
+        (i, Line::Definition(s, e))
+    } else if peek(comment)(i).is_ok() {
+        let (i, l) = comment(i)?;
+        (i, Line::Comment(l))
+    } else if peek(org_statement)(i).is_ok() {
+        let (i, l) = org_statement(i)?;
+        (i, Line::OrgStatement(l))
+    } else {
+        let (i, l) = instruction(i)?;
+        (i, Line::Instruction(l))
+    };
+
+    let (i, _) = character::space0(i)?;
+
+    Ok((i, l))
 }
 
-pub enum Term<'a> {
-    Label(&'a str),
-    Number(i32),
-}
-pub enum NumericOperation {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
+fn lines(i: &str) -> IResult<&str, Vec<Line>> {
+    let (i, ls) = nom::multi::separated_list(character::multispace1, line)(i)?;
+    let (i, _) = nom::combinator::opt(bytes::tag_no_case("END"))(i)?;
+    Ok((i, ls))
 }
 
-enum ExpressionListItem<'a> {
-    TermItem(Term<'a>),
-    Operation(NumericOperation),
+fn definition(i: &str) -> IResult<&str, (&str, Expression)> {
+    let (i, label) = label(i)?;
+    let (i, _) = nom::combinator::recognize(nom::sequence::tuple((
+        character::space1,
+        bytes::tag_no_case("EQU"),
+        character::space1,
+    )))(i)?;
+    let (i, expression) = expr(i)?;
+    let (i, _) = nom::combinator::opt(nom::sequence::preceded(character::space0, comment))(i)?;
+
+    Ok((i, (label, expression)))
 }
 
-pub struct Instruction<'a> {
-    label_list: Vec<&'a str>,
-    operation: Operation,
-    field_a: Address<'a>,
-    field_b: Option<Address<'a>>,
-}
+fn org_statement(i: &str) -> IResult<&str, Expression> {
+    let (i, _) = nom::combinator::recognize(nom::sequence::tuple((
+        character::space0,
+        bytes::tag_no_case("ORG"),
+        character::space1,
+    )))(i)?;
+    let (i, res) = expr(i)?;
+    let (i, _) = nom::combinator::opt(nom::sequence::preceded(character::space0, comment))(i)?;
 
-pub struct Address<'a> {
-    expr: Vec<ExpressionListItem<'a>>,
-    mode: AddressMode,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Operation {
-    opcode: Opcode,
-    modifier: Modifier,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum AddressMode {
-    Direct,
-    Immediate,
-    Indirect,
-    PredecrementIndirect,
-    PostincrementIndirect,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Modifier {
-    A,
-    B,
-    AB,
-    BA,
-    F,
-    X,
-    I,
+    Ok((i, res))
 }
 
 fn address_mode(i: &str) -> IResult<&str, AddressMode> {
@@ -256,10 +236,13 @@ fn term(i: &str) -> IResult<&str, Term> {
     Ok((i, term))
 }
 
-fn expr(i: &str) -> IResult<&str, Vec<ExpressionListItem>> {
+fn expr(i: &str) -> IResult<&str, Expression> {
     let (i, (head, tail)) = nom::sequence::pair(
         term,
-        nom::multi::many0(nom::sequence::pair(character::one_of("+-/%"), term)),
+        nom::multi::many0(nom::sequence::pair(
+            nom::sequence::preceded(character::space0, character::one_of("+-*/%")),
+            nom::sequence::preceded(character::space0, term),
+        )),
     )(i)?;
 
     let head = ExpressionListItem::TermItem(head);
@@ -269,6 +252,7 @@ fn expr(i: &str) -> IResult<&str, Vec<ExpressionListItem>> {
             let op = match op {
                 '+' => NumericOperation::Add,
                 '-' => NumericOperation::Subtract,
+                '*' => NumericOperation::Multiply,
                 '/' => NumericOperation::Divide,
                 '%' => NumericOperation::Modulo,
                 _ => unreachable!(),
@@ -289,12 +273,12 @@ fn expr(i: &str) -> IResult<&str, Vec<ExpressionListItem>> {
 }
 
 fn comment(i: &str) -> IResult<&str, &str> {
-    let res = nom::combinator::recognize(nom::sequence::tuple((
+    let (i, res) = nom::combinator::recognize(nom::sequence::tuple((
         character::char(';'),
         character::not_line_ending,
     )))(i)?;
 
-    Ok(res)
+    Ok((i, res))
 }
 
 fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
@@ -538,5 +522,163 @@ mod test {
 
         assert_eq!(i, "");
         assert_eq!(instr.label_list.len(), 0);
+    }
+
+    #[test]
+    fn parse_expression() {
+        let (i, res) = expr("3 - 5 + hmm / 2 * 22").unwrap();
+
+        assert_eq!(i, "");
+        assert_eq!(res.len(), 9);
+    }
+
+    #[test]
+    fn parse_definition() {
+        let (i, res) = definition("step   EQU 4").unwrap();
+        assert_eq!(i, "");
+        assert_eq!(
+            res,
+            ("step", vec![ExpressionListItem::TermItem(Term::Number(4))])
+        );
+
+        let (i, res) = definition("step   EQU blah + 4 / 2 * something").unwrap();
+        assert_eq!(i, "");
+        assert_eq!(
+            res,
+            (
+                "step",
+                vec![
+                    ExpressionListItem::TermItem(Term::Label("blah")),
+                    ExpressionListItem::Operation(NumericOperation::Add),
+                    ExpressionListItem::TermItem(Term::Number(4)),
+                    ExpressionListItem::Operation(NumericOperation::Divide),
+                    ExpressionListItem::TermItem(Term::Number(2)),
+                    ExpressionListItem::Operation(NumericOperation::Multiply),
+                    ExpressionListItem::TermItem(Term::Label("something"))
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn parse_org_statement() {
+        let (i, res) = org_statement("ORG 3 + ser").unwrap();
+        assert_eq!(i, "");
+        assert_eq!(
+            res,
+            vec![
+                ExpressionListItem::TermItem(Term::Number(3)),
+                ExpressionListItem::Operation(NumericOperation::Add),
+                ExpressionListItem::TermItem(Term::Label("ser"))
+            ]
+        );
+
+        let (i, res) = org_statement("    ORG   flip").unwrap();
+        assert_eq!(i, "");
+        assert_eq!(res, vec![ExpressionListItem::TermItem(Term::Label("flip"))]);
+    }
+
+    #[test]
+    fn parse_lines() {
+        let (i, res) = lines(
+            ";redcode
+     
+ ;name          Dwarf
+ ;author        A. K. Dewdney
+ ;version       94.1
+ ;date          April 29, 1993
+ 
+ ;strategy      Bombs every fourth instruction.
+ 
+         ORG     start              ; Indicates the instruction with
+                                    ; the label 'start' should be the
+                                    ; first to execute.
+ 
+ step    EQU      4                 ; Replaces all occurrences of 'step'
+                                    ; with the character '4'.
+ 
+ target  DAT.F   #0,     #0         ; Pointer to target instruction.
+ start   ADD.AB  #step,   target    ; Increments pointer by step.
+         MOV.AB  #0,     @target    ; Bombs target instruction.
+         JMP.A    start             ; Same as JMP.A -2.  Loops back to
+                                    ; the instruction labelled 'start'.
+         END",
+        )
+        .unwrap();
+
+        assert_eq!(
+            res,
+            vec![
+                Line::Comment(";redcode"),
+                Line::Comment(";name          Dwarf"),
+                Line::Comment(";author        A. K. Dewdney"),
+                Line::Comment(";version       94.1"),
+                Line::Comment(";date          April 29, 1993"),
+                Line::Comment(";strategy      Bombs every fourth instruction."),
+                Line::OrgStatement(vec![ExpressionListItem::TermItem(Term::Label("start"))]),
+                Line::Comment("; the label \'start\' should be the"),
+                Line::Comment("; first to execute."),
+                Line::Definition("step", vec![ExpressionListItem::TermItem(Term::Number(4))]),
+                Line::Comment("; with the character \'4\'."),
+                Line::Instruction(Instruction {
+                    label_list: vec!["target"],
+                    operation: Operation {
+                        opcode: Opcode::Dat,
+                        modifier: Modifier::F
+                    },
+                    field_a: Address {
+                        expr: vec![ExpressionListItem::TermItem(Term::Number(0))],
+                        mode: AddressMode::Immediate
+                    },
+                    field_b: Some(Address {
+                        expr: vec![ExpressionListItem::TermItem(Term::Number(0))],
+                        mode: AddressMode::Immediate
+                    })
+                }),
+                Line::Instruction(Instruction {
+                    label_list: vec!["start"],
+                    operation: Operation {
+                        opcode: Opcode::Add,
+                        modifier: Modifier::AB
+                    },
+                    field_a: Address {
+                        expr: vec![ExpressionListItem::TermItem(Term::Label("step"))],
+                        mode: AddressMode::Immediate
+                    },
+                    field_b: Some(Address {
+                        expr: vec![ExpressionListItem::TermItem(Term::Label("target"))],
+                        mode: AddressMode::Direct
+                    })
+                }),
+                Line::Instruction(Instruction {
+                    label_list: vec![],
+                    operation: Operation {
+                        opcode: Opcode::Mov,
+                        modifier: Modifier::AB
+                    },
+                    field_a: Address {
+                        expr: vec![ExpressionListItem::TermItem(Term::Number(0))],
+                        mode: AddressMode::Immediate
+                    },
+                    field_b: Some(Address {
+                        expr: vec![ExpressionListItem::TermItem(Term::Label("target"))],
+                        mode: AddressMode::Indirect
+                    })
+                }),
+                Line::Instruction(Instruction {
+                    label_list: vec![],
+                    operation: Operation {
+                        opcode: Opcode::Jmp,
+                        modifier: Modifier::A
+                    },
+                    field_a: Address {
+                        expr: vec![ExpressionListItem::TermItem(Term::Label("start"))],
+                        mode: AddressMode::Direct
+                    },
+                    field_b: None
+                }),
+                Line::Comment("; the instruction labelled \'start\'.")
+            ]
+        )
     }
 }
