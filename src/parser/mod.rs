@@ -6,7 +6,7 @@ use nom::{
     character::complete::{
         alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
     },
-    combinator::{map, opt, peek, recognize},
+    combinator::{map, opt, recognize},
     multi::{many0, separated_list},
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
@@ -74,11 +74,11 @@ fn definition(i: &str) -> IResult<&str, (&str, &str)> {
 }
 
 fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
-    let (i, _) = recognize(tuple((space0, tag_no_case("ORG"), space1)))(i)?;
-    let (i, res) = expr(i)?;
-    let (i, _) = opt(preceded(space0, comment))(i)?;
-
-    Ok((i, res))
+    delimited(
+        recognize(tuple((space0, tag_no_case("ORG"), space1))),
+        expr,
+        opt(preceded(space0, comment)),
+    )(i)
 }
 
 fn address_mode(i: &str) -> IResult<&str, AddressMode> {
@@ -171,16 +171,10 @@ fn operation(i: &str) -> IResult<&str, Operation> {
 }
 
 fn address(i: &str) -> IResult<&str, Address> {
-    let (i, (mode, expression)) = pair(opt(address_mode), expr)(i)?;
-    let mode = mode.unwrap_or(AddressMode::Direct);
-
-    Ok((
-        i,
-        Address {
-            mode,
-            expr: expression,
-        },
-    ))
+    map(pair(opt(address_mode), expr), |(mode, expr)| Address {
+        mode: mode.unwrap_or(AddressMode::Direct),
+        expr,
+    })(i)
 }
 
 fn instruction(i: &str) -> IResult<&str, Instruction> {
