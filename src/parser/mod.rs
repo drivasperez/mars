@@ -59,7 +59,7 @@ fn replace_definitions<'a>(s: &'a str) -> Result<String, Box<dyn std::error::Err
     Ok(replaced)
 }
 
-fn lines(i: &str) -> IResult<&str, Vec<Line>> {
+pub fn lines(i: &str) -> IResult<&str, Vec<Line>> {
     let (i, ls) = separated_list(multispace1, line)(i)?;
     let (i, _) = opt(tag_no_case("END"))(i)?;
     Ok((i, ls))
@@ -224,6 +224,7 @@ fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use numeric_expr::ExprValue;
 
     #[test]
     fn parse_address_mode() {

@@ -136,13 +136,9 @@ fn parens(i: &str) -> IResult<&str, NumericExpr> {
 
 fn factor(i: &str) -> IResult<&str, NumericExpr> {
     alt((
-        map(
-            map_res(
-                delimited(multispace0, digit1, multispace0),
-                FromStr::from_str,
-            ),
-            |v| NumericExpr::Value(ExprValue::Number(v)),
-        ),
+        map(delimited(multispace0, super::number, multispace0), |v| {
+            NumericExpr::Value(ExprValue::Number(v))
+        }),
         map(delimited(multispace0, super::label, multispace0), |v| {
             NumericExpr::Value(ExprValue::Label(v))
         }),
@@ -241,6 +237,7 @@ mod test {
         let labels: HashMap<&str, i32> = vec![("hello", 33), ("world", -2)].into_iter().collect();
 
         assert_eq!(expr("3 + 5").unwrap().1.evaluate(&labels).unwrap(), 8);
+        assert_eq!(expr("3 + -5").unwrap().1.evaluate(&labels).unwrap(), -2);
         assert_eq!(expr("3 + 5 * 2").unwrap().1.evaluate(&labels).unwrap(), 13);
         assert_eq!(
             expr("3 + hello * 2").unwrap().1.evaluate(&labels).unwrap(),
