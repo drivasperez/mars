@@ -125,9 +125,54 @@ pub enum Modifier {
     I,
 }
 
+impl Display for Modifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use Modifier::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                A => "A",
+                B => "B",
+                AB => "AB",
+                BA => "BA",
+                F => "F",
+                X => "X",
+                I => "I",
+            }
+        )
+    }
+}
+
 pub struct RawInstruction {
     opcode: Opcode,
     modifier: Modifier,
     addr1: (AddressMode, i32),
     addr2: (AddressMode, i32),
+}
+
+impl Display for RawInstruction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}.{} {}{}, {}{}",
+            self.opcode, self.modifier, self.addr1.0, self.addr1.1, self.addr2.0, self.addr2.1
+        )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn display_raw_instruction() {
+        let inst = RawInstruction {
+            opcode: Opcode::Mov,
+            modifier: Modifier::BA,
+            addr1: (AddressMode::Direct, 8),
+            addr2: (AddressMode::AFieldIndirect, 2),
+        };
+
+        assert_eq!(format!("{}", inst), String::from("MOV.BA $8, *2"));
+    }
 }
