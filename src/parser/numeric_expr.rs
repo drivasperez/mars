@@ -31,8 +31,8 @@ impl Display for ExprValue<'_> {
 impl Debug for ExprValue<'_> {
     fn fmt(&self, format: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Self::Number(n) => write!(format, "{}", n),
-            Self::Label(l) => write!(format, "{}", l),
+            Self::Number(n) => write!(format, "{:?}", n),
+            Self::Label(l) => write!(format, "{:?}", l),
         }
     }
 }
