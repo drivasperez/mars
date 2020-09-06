@@ -13,11 +13,13 @@ use nom::{
 
 pub mod numeric_expr;
 
+use numeric_expr::{expr, ExprValue, NumericExpr};
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Line<'a> {
     Instruction(Instruction<'a>),
     Comment(&'a str),
-    OrgStatement(Expression<'a>),
+    OrgStatement(NumericExpr<'a>),
     Definition(&'a str, &'a str),
 }
 
@@ -72,7 +74,7 @@ fn definition(i: &str) -> IResult<&str, (&str, &str)> {
     Ok((i, (label, expression)))
 }
 
-fn org_statement(i: &str) -> IResult<&str, Expression> {
+fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
     let (i, _) = recognize(tuple((space0, tag_no_case("ORG"), space1)))(i)?;
     let (i, res) = expr(i)?;
     let (i, _) = opt(preceded(space0, comment))(i)?;
@@ -244,42 +246,6 @@ fn term(i: &str) -> IResult<&str, Term> {
     };
 
     Ok((i, term))
-}
-
-fn expr(i: &str) -> IResult<&str, Expression> {
-    let (i, (head, tail)) = pair(
-        term,
-        many0(pair(
-            preceded(space0, one_of("+-*/%")),
-            preceded(space0, term),
-        )),
-    )(i)?;
-
-    let head = ExpressionListItem::TermItem(head);
-    let mut tail: Vec<ExpressionListItem> = tail
-        .into_iter()
-        .flat_map(|(op, term)| {
-            let op = match op {
-                '+' => NumericOperation::Add,
-                '-' => NumericOperation::Subtract,
-                '*' => NumericOperation::Multiply,
-                '/' => NumericOperation::Divide,
-                '%' => NumericOperation::Modulo,
-                _ => unreachable!(),
-            };
-
-            vec![
-                ExpressionListItem::Operation(op),
-                ExpressionListItem::TermItem(term),
-            ]
-        })
-        .collect();
-
-    let mut v = Vec::new();
-    v.push(head);
-    v.append(&mut tail);
-
-    Ok((i, v))
 }
 
 fn comment(i: &str) -> IResult<&str, &str> {
@@ -528,14 +494,6 @@ mod test {
     }
 
     #[test]
-    fn parse_expression() {
-        let (i, res) = expr("3 - 5 + hmm / 2 * 22").unwrap();
-
-        assert_eq!(i, "");
-        assert_eq!(res.len(), 9);
-    }
-
-    #[test]
     fn parse_definition() {
         let (i, res) = definition("step   EQU 4").unwrap();
         assert_eq!(i, "");
@@ -561,18 +519,11 @@ mod test {
     fn parse_org_statement() {
         let (i, res) = org_statement("ORG 3 + ser").unwrap();
         assert_eq!(i, "");
-        assert_eq!(
-            res,
-            vec![
-                ExpressionListItem::TermItem(Term::Number(3)),
-                ExpressionListItem::Operation(NumericOperation::Add),
-                ExpressionListItem::TermItem(Term::Label("ser"))
-            ]
-        );
+        assert_eq!(format!("{}", res), String::from("3 + ser"),);
 
         let (i, res) = org_statement("    ORG   flip").unwrap();
         assert_eq!(i, "");
-        assert_eq!(res, vec![ExpressionListItem::TermItem(Term::Label("flip"))]);
+        assert_eq!(format!("{}", res), String::from("flip"));
     }
 
     #[test]
@@ -598,7 +549,7 @@ mod test {
                 Line::Comment(";version       94.1"),
                 Line::Comment(";date          April 29, 1993"),
                 Line::Comment(";strategy      Bombs every fourth instruction."),
-                Line::OrgStatement(vec![ExpressionListItem::TermItem(Term::Label("start"))]),
+                Line::OrgStatement(NumericExpr::Value(ExprValue::Label("start"))),
                 Line::Comment("; the label start should be the"),
                 Line::Comment("; first to execute."),
                 Line::Definition("step", "4                 "),
@@ -610,11 +561,11 @@ mod test {
                         modifier: Modifier::F
                     },
                     field_a: Address {
-                        expr: vec![ExpressionListItem::TermItem(Term::Number(0))],
+                        expr: NumericExpr::Value(ExprValue::Number(0)),
                         mode: AddressMode::Immediate
                     },
                     field_b: Some(Address {
-                        expr: vec![ExpressionListItem::TermItem(Term::Number(0))],
+                        expr: NumericExpr::Value(ExprValue::Number(0)),
                         mode: AddressMode::Immediate
                     })
                 }),
@@ -625,11 +576,11 @@ mod test {
                         modifier: Modifier::AB
                     },
                     field_a: Address {
-                        expr: vec![ExpressionListItem::TermItem(Term::Label("step"))],
+                        expr: NumericExpr::Value(ExprValue::Label("step")),
                         mode: AddressMode::Immediate
                     },
                     field_b: Some(Address {
-                        expr: vec![ExpressionListItem::TermItem(Term::Label("target"))],
+                        expr: NumericExpr::Value(ExprValue::Label("target")),
                         mode: AddressMode::Direct
                     })
                 }),
@@ -640,11 +591,11 @@ mod test {
                         modifier: Modifier::AB
                     },
                     field_a: Address {
-                        expr: vec![ExpressionListItem::TermItem(Term::Number(0))],
+                        expr: NumericExpr::Value(ExprValue::Number(0)),
                         mode: AddressMode::Immediate
                     },
                     field_b: Some(Address {
-                        expr: vec![ExpressionListItem::TermItem(Term::Label("target"))],
+                        expr: NumericExpr::Value(ExprValue::Label("target")),
                         mode: AddressMode::Indirect
                     })
                 }),
@@ -655,7 +606,7 @@ mod test {
                         modifier: Modifier::A
                     },
                     field_a: Address {
-                        expr: vec![ExpressionListItem::TermItem(Term::Label("start"))],
+                        expr: NumericExpr::Value(ExprValue::Label("start")),
                         mode: AddressMode::Direct
                     },
                     field_b: None

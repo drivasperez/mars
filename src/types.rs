@@ -1,3 +1,5 @@
+use crate::parser::numeric_expr::NumericExpr;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Opcode {
     Dat,
@@ -39,8 +41,6 @@ pub enum ExpressionListItem<'a> {
     Operation(NumericOperation),
 }
 
-pub type Expression<'a> = Vec<ExpressionListItem<'a>>;
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct Instruction<'a> {
     pub label_list: Vec<&'a str>,
@@ -51,7 +51,7 @@ pub struct Instruction<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Address<'a> {
-    pub expr: Expression<'a>,
+    pub expr: NumericExpr<'a>,
     pub mode: AddressMode,
 }
 
