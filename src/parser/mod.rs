@@ -8,7 +8,7 @@ use nom::{
     },
     combinator::{map, opt, peek, recognize},
     multi::{many0, separated_list},
-    sequence::{pair, preceded, terminated, tuple},
+    sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
 
@@ -48,31 +48,20 @@ pub enum Line<'a> {
 }
 
 fn line(i: &str) -> IResult<&str, Line> {
-    let (i, _) = space0(i)?;
-
-    let (i, l) = if peek(definition)(i).is_ok() {
-        let (i, (s, e)) = definition(i)?;
-        (i, Line::Definition(s, e))
-    } else if peek(comment)(i).is_ok() {
-        let (i, l) = comment(i)?;
-        (i, Line::Comment(l))
-    } else if peek(org_statement)(i).is_ok() {
-        let (i, l) = org_statement(i)?;
-        (i, Line::OrgStatement(l))
-    } else {
-        let (i, l) = instruction(i)?;
-        (i, Line::Instruction(l))
-    };
-
-    let (i, _) = space0(i)?;
-
-    Ok((i, l))
+    delimited(
+        space0,
+        alt((
+            map(definition, |(a, b)| Line::Definition(a, b)),
+            map(comment, Line::Comment),
+            map(org_statement, Line::OrgStatement),
+            map(instruction, Line::Instruction),
+        )),
+        space0,
+    )(i)
 }
 
 pub fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    let (i, ls) = separated_list(multispace1, line)(i)?;
-    let (i, _) = opt(tag_no_case("END"))(i)?;
-    Ok((i, ls))
+    terminated(separated_list(multispace1, line), opt(tag_no_case("END")))(i)
 }
 
 fn definition(i: &str) -> IResult<&str, (&str, &str)> {
