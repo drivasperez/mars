@@ -20,6 +20,19 @@ pub enum Opcode {
     Nop,
 }
 
+impl Opcode {
+    pub fn default_modifier(&self) -> Modifier {
+        match self {
+            Opcode::Dat | Opcode::Nop => Modifier::F,
+            Opcode::Mov | Opcode::Seq | Opcode::Sne => Modifier::I,
+            Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod => Modifier::AB,
+            Opcode::Jmp | Opcode::Jmz | Opcode::Jmn | Opcode::Djn | Opcode::Slt | Opcode::Spl => {
+                Modifier::B
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Term<'a> {
     Label(&'a str),

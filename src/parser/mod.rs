@@ -5,7 +5,7 @@ use nom::{
     character::complete::{
         alpha1, alphanumeric0, char, digit1, multispace1, not_line_ending, one_of, space0, space1,
     },
-    combinator::{opt, peek, recognize},
+    combinator::{map, opt, peek, recognize},
     multi::{many0, separated_list},
     sequence::{pair, preceded, terminated, tuple},
     IResult,
@@ -13,7 +13,7 @@ use nom::{
 
 pub mod numeric_expr;
 
-use numeric_expr::{expr, ExprValue, NumericExpr};
+use numeric_expr::{expr, NumericExpr};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Line<'a> {
@@ -83,102 +83,88 @@ fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
 }
 
 fn address_mode(i: &str) -> IResult<&str, AddressMode> {
-    let (i, symbol) = one_of("#$@<>")(i)?;
-
-    let mode = match symbol {
+    map(one_of("#$@<>"), |symbol| match symbol {
         '$' => AddressMode::Direct,
         '#' => AddressMode::Immediate,
         '@' => AddressMode::Indirect,
         '<' => AddressMode::PredecrementIndirect,
         '>' => AddressMode::PostincrementIndirect,
         _ => unreachable!(),
-    };
-
-    Ok((i, mode))
+    })(i)
 }
 
 fn opcode(i: &str) -> IResult<&str, Opcode> {
     use tag_no_case as t;
-    let (i, opcode) = alt((
-        t("DAT"),
-        t("MOV"),
-        t("ADD"),
-        t("SUB"),
-        t("MUL"),
-        t("DIV"),
-        t("MOD"),
-        t("JMP"),
-        t("JMZ"),
-        t("JMN"),
-        t("DJN"),
-        t("CMP"),
-        t("SLT"),
-        t("SPL"),
-        t("SEQ"),
-        t("SNE"),
-        t("ORG"),
-        t("EQU"),
-        t("NOP"),
-    ))(i)?;
-
-    let opcode = match opcode.to_ascii_uppercase().as_str() {
-        "DAT" => Opcode::Dat,
-        "MOV" => Opcode::Mov,
-        "ADD" => Opcode::Add,
-        "SUB" => Opcode::Sub,
-        "MUL" => Opcode::Mul,
-        "DIV" => Opcode::Div,
-        "MOD" => Opcode::Mod,
-        "JMP" => Opcode::Jmp,
-        "JMZ" => Opcode::Jmz,
-        "JMN" => Opcode::Jmn,
-        "DJN" => Opcode::Djn,
-        "CMP" => Opcode::Seq,
-        "SLT" => Opcode::Slt,
-        "SPL" => Opcode::Spl,
-        "SEQ" => Opcode::Seq,
-        "SNE" => Opcode::Sne,
-        "NOP" => Opcode::Nop,
-        _ => unreachable!(),
-    };
-
-    Ok((i, opcode))
+    map(
+        alt((
+            t("DAT"),
+            t("MOV"),
+            t("ADD"),
+            t("SUB"),
+            t("MUL"),
+            t("DIV"),
+            t("MOD"),
+            t("JMP"),
+            t("JMZ"),
+            t("JMN"),
+            t("DJN"),
+            t("CMP"),
+            t("SLT"),
+            t("SPL"),
+            t("SEQ"),
+            t("SNE"),
+            t("ORG"),
+            t("EQU"),
+            t("NOP"),
+        )),
+        |opcode: &str| match opcode.to_ascii_uppercase().as_str() {
+            "DAT" => Opcode::Dat,
+            "MOV" => Opcode::Mov,
+            "ADD" => Opcode::Add,
+            "SUB" => Opcode::Sub,
+            "MUL" => Opcode::Mul,
+            "DIV" => Opcode::Div,
+            "MOD" => Opcode::Mod,
+            "JMP" => Opcode::Jmp,
+            "JMZ" => Opcode::Jmz,
+            "JMN" => Opcode::Jmn,
+            "DJN" => Opcode::Djn,
+            "CMP" => Opcode::Seq,
+            "SLT" => Opcode::Slt,
+            "SPL" => Opcode::Spl,
+            "SEQ" => Opcode::Seq,
+            "SNE" => Opcode::Sne,
+            "NOP" => Opcode::Nop,
+            _ => unreachable!(),
+        },
+    )(i)
 }
 
 fn modifier(i: &str) -> IResult<&str, Modifier> {
     use tag_no_case as t;
-    let (i, modifier) = alt((t("AB"), t("BA"), t("A"), t("B"), t("F"), t("X"), t("I")))(i)?;
-
-    let modifier = match modifier.to_ascii_uppercase().as_str() {
-        "A" => Modifier::A,
-        "B" => Modifier::B,
-        "AB" => Modifier::AB,
-        "BA" => Modifier::BA,
-        "F" => Modifier::F,
-        "X" => Modifier::X,
-        "I" => Modifier::I,
-        _ => unreachable!(),
-    };
-
-    Ok((i, modifier))
+    map(
+        alt((t("AB"), t("BA"), t("A"), t("B"), t("F"), t("X"), t("I"))),
+        |modifier: &str| match modifier.to_ascii_uppercase().as_str() {
+            "A" => Modifier::A,
+            "B" => Modifier::B,
+            "AB" => Modifier::AB,
+            "BA" => Modifier::BA,
+            "F" => Modifier::F,
+            "X" => Modifier::X,
+            "I" => Modifier::I,
+            _ => unreachable!(),
+        },
+    )(i)
 }
 
 fn operation(i: &str) -> IResult<&str, Operation> {
-    let (i, opcode) = opcode(i)?;
-    let (i, modifier) = opt(preceded(char('.'), modifier))(i)?;
-
-    let modifier = modifier.unwrap_or(match opcode {
-        Opcode::Dat | Opcode::Nop => Modifier::F,
-        Opcode::Mov | Opcode::Seq | Opcode::Sne => Modifier::I,
-        Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod => Modifier::AB,
-        Opcode::Jmp | Opcode::Jmz | Opcode::Jmn | Opcode::Djn | Opcode::Slt | Opcode::Spl => {
-            Modifier::B
-        }
-    });
-
-    let operation = Operation { opcode, modifier };
-
-    Ok((i, operation))
+    map(
+        pair(opcode, opt(preceded(char('.'), modifier))),
+        |(opcode, modifier)| Operation {
+            modifier: modifier.unwrap_or_else(|| opcode.default_modifier()),
+            opcode,
+        },
+    )(i)
 }
 
 fn address(i: &str) -> IResult<&str, Address> {
@@ -218,34 +204,13 @@ fn instruction(i: &str) -> IResult<&str, Instruction> {
 }
 
 fn number(i: &str) -> IResult<&str, i32> {
-    let (i, (sign, num)) = pair(opt(one_of("+-")), digit1)(i)?;
-
-    let sign = sign.unwrap_or('+');
-    let mut num: i32 = num.parse().unwrap();
-
-    if sign == '-' {
-        num *= -1;
-    }
-
-    Ok((i, num))
+    map(recognize(pair(opt(one_of("+-")), digit1)), |num: &str| {
+        num.parse().unwrap()
+    })(i)
 }
 
 fn label(i: &str) -> IResult<&str, &str> {
     recognize(pair(alpha1, alphanumeric0))(i)
-}
-
-fn term(i: &str) -> IResult<&str, Term> {
-    let (i, term) = if let Ok(_) = peek(number)(i) {
-        let (i, term) = number(i)?;
-        let term = Term::Number(term);
-        (i, term)
-    } else {
-        let (i, term) = label(i)?;
-        let term = Term::Label(term);
-        (i, term)
-    };
-
-    Ok((i, term))
 }
 
 fn comment(i: &str) -> IResult<&str, &str> {
