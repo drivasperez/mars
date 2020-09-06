@@ -596,87 +596,17 @@ mod test {
 
     #[test]
     fn test_replace_definitions() {
-        let replaced = replace_definitions(
-            ";redcode
-     
- ;name          Dwarf
- ;author        A. K. Dewdney
- ;version       94.1
- ;date          April 29, 1993
- 
- ;strategy      Bombs every fourth instruction.
- 
-         ORG     start              ; Indicates the instruction with
-                                    ; the label 'start' should be the
-                                    ; first to execute.
- 
- step    EQU      4                 ; Replaces all occurrences of 'step'
-                                    ; with the character '4'.
- 
- target  DAT.F   #0,     #0         ; Pointer to target instruction.
- start   ADD.AB  #step,   target    ; Increments pointer by step.
-         MOV.AB  #0,     @target    ; Bombs target instruction.
-         JMP.A    start             ; Same as JMP.A -2.  Loops back to
-                                    ; the instruction labelled 'start'.
-         END",
-        )
-        .unwrap();
+        let warrior = include_str!("../../warriors/dwarf.red");
+        let replaced = replace_definitions(warrior).unwrap();
 
-        assert_eq!(
-            &replaced,
-            ";redcode
-     
- ;name          Dwarf
- ;author        A. K. Dewdney
- ;version       94.1
- ;date          April 29, 1993
- 
- ;strategy      Bombs every fourth instruction.
- 
-         ORG     start              ; Indicates the instruction with
-                                    ; the label 'start' should be the
-                                    ; first to execute.
- 
- 4    EQU      4                 ; Replaces all occurrences of '4'
-                                    ; with the character '4'.
- 
- target  DAT.F   #0,     #0         ; Pointer to target instruction.
- start   ADD.AB  #4,   target    ; Increments pointer by 4.
-         MOV.AB  #0,     @target    ; Bombs target instruction.
-         JMP.A    start             ; Same as JMP.A -2.  Loops back to
-                                    ; the instruction labelled 'start'.
-         END"
-        );
+        assert_eq!(replaced, warrior.replace("step", "4"));
         assert!(lines(&replaced).is_ok());
     }
 
     #[test]
     fn parse_lines() {
-        let (i, res) = lines(
-            ";redcode
-     
- ;name          Dwarf
- ;author        A. K. Dewdney
- ;version       94.1
- ;date          April 29, 1993
- 
- ;strategy      Bombs every fourth instruction.
- 
-         ORG     start              ; Indicates the instruction with
-                                    ; the label 'start' should be the
-                                    ; first to execute.
- 
- step    EQU      4                 ; Replaces all occurrences of 'step'
-                                    ; with the character '4'.
- 
- target  DAT.F   #0,     #0         ; Pointer to target instruction.
- start   ADD.AB  #step,   target    ; Increments pointer by step.
-         MOV.AB  #0,     @target    ; Bombs target instruction.
-         JMP.A    start             ; Same as JMP.A -2.  Loops back to
-                                    ; the instruction labelled 'start'.
-         END",
-        )
-        .unwrap();
+        let warrior = include_str!("../../warriors/dwarf.red");
+        let (i, res) = lines(warrior).unwrap();
 
         assert_eq!(
             res,
@@ -688,10 +618,10 @@ mod test {
                 Line::Comment(";date          April 29, 1993"),
                 Line::Comment(";strategy      Bombs every fourth instruction."),
                 Line::OrgStatement(vec![ExpressionListItem::TermItem(Term::Label("start"))]),
-                Line::Comment("; the label \'start\' should be the"),
+                Line::Comment("; the label start should be the"),
                 Line::Comment("; first to execute."),
                 Line::Definition("step", "4                 "),
-                Line::Comment("; with the character \'4\'."),
+                Line::Comment("; with the character 4."),
                 Line::Instruction(Instruction {
                     label_list: vec!["target"],
                     operation: Operation {
@@ -749,7 +679,7 @@ mod test {
                     },
                     field_b: None
                 }),
-                Line::Comment("; the instruction labelled \'start\'.")
+                Line::Comment("; the instruction labelled start.")
             ]
         )
     }
