@@ -8,6 +8,7 @@ use nom::{
     sequence::preceded,
     IResult,
 };
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Debug, Display};
 use std::str::FromStr;
@@ -74,6 +75,33 @@ impl Display for NumericExpr<'_> {
             Modulo(ref left, ref right) => write!(format, "{} % {}", left, right),
             Paren(ref expr) => write!(format, "({})", expr),
         }
+    }
+}
+
+impl NumericExpr<'_> {
+    fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, ()> {
+        let res: i32 = match self {
+            Self::Value(val) => match val {
+                ExprValue::Number(n) => *n,
+                ExprValue::Label(ref l) => *labels.get(l).ok_or(())?,
+            },
+
+            Self::Paren(ref val) => val.evaluate(labels)?,
+            Self::Add(ref left, ref right) => left.evaluate(labels)? + right.evaluate(labels)?,
+            Self::Subtract(ref left, ref right) => {
+                left.evaluate(labels)? - right.evaluate(labels)?
+            }
+            Self::Multiply(ref left, ref right) => {
+                left.evaluate(labels)? * right.evaluate(labels)?
+            }
+            Self::Divide(ref left, ref right) => left
+                .evaluate(labels)?
+                .checked_div(right.evaluate(labels)?)
+                .ok_or(())?,
+            Self::Modulo(ref left, ref right) => left.evaluate(labels)? % right.evaluate(labels)?,
+        };
+
+        Ok(res)
     }
 }
 
@@ -197,5 +225,18 @@ mod test {
             ),
             String::from("3 * 12 / (4 + 5 + variable) % (tag + 4)")
         );
+    }
+
+    #[test]
+    fn evaluate_expression() {
+        let labels: HashMap<&str, i32> = vec![("hello", 33), ("world", -2)].into_iter().collect();
+
+        assert_eq!(expr("3 + 5").unwrap().1.evaluate(&labels).unwrap(), 8);
+        assert_eq!(expr("3 + 5 * 2").unwrap().1.evaluate(&labels).unwrap(), 13);
+        assert_eq!(
+            expr("3 + hello * 2").unwrap().1.evaluate(&labels).unwrap(),
+            69
+        );
+        assert!(expr("8 / 0").unwrap().1.evaluate(&labels).is_err())
     }
 }

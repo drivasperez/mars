@@ -253,7 +253,7 @@ fn comment(i: &str) -> IResult<&str, &str> {
 }
 
 fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
-    many0(terminated(label, multispace1))(i)
+    terminated(many0(terminated(label, multispace1)), opt(char(':')))(i)
 }
 
 #[cfg(test)]
@@ -533,6 +533,15 @@ mod test {
 
         assert_eq!(replaced, warrior.replace("step", "4"));
         assert!(lines(&replaced).is_ok());
+    }
+
+    #[test]
+    fn test_warriors() {
+        let dwarf = include_str!("../../warriors/dwarf.red");
+        let imp = include_str!("../../warriors/imp.red");
+
+        assert!(lines(dwarf).is_ok());
+        assert!(lines(imp).is_ok());
     }
 
     #[test]
