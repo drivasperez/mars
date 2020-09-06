@@ -1,17 +1,15 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{digit1, multispace0},
-    combinator::{map, map_res},
+    character::complete::{digit1, multispace0, one_of},
+    combinator::{map, opt, recognize},
     multi::many0,
-    sequence::delimited,
-    sequence::preceded,
+    sequence::{delimited, pair, preceded},
     IResult,
 };
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Debug, Display};
-use std::str::FromStr;
 
 #[derive(Eq, PartialEq)]
 pub enum ExprValue<'a> {
@@ -122,6 +120,12 @@ pub enum Operation {
     Modulo,
 }
 
+fn number(i: &str) -> IResult<&str, i32> {
+    map(recognize(pair(opt(one_of("+-")), digit1)), |num: &str| {
+        num.parse().unwrap()
+    })(i)
+}
+
 fn parens(i: &str) -> IResult<&str, NumericExpr> {
     delimited(
         multispace0,
@@ -136,7 +140,7 @@ fn parens(i: &str) -> IResult<&str, NumericExpr> {
 
 fn factor(i: &str) -> IResult<&str, NumericExpr> {
     alt((
-        map(delimited(multispace0, super::number, multispace0), |v| {
+        map(delimited(multispace0, number, multispace0), |v| {
             NumericExpr::Value(ExprValue::Number(v))
         }),
         map(delimited(multispace0, super::label, multispace0), |v| {
@@ -201,6 +205,26 @@ pub fn expr(i: &str) -> IResult<&str, NumericExpr> {
 #[cfg(test)]
 mod test {
     use super::*;
+    #[test]
+    fn parse_number() {
+        let res = number("322");
+        assert_eq!(res, Ok(("", 322)));
+
+        let res = number("+9");
+        assert_eq!(res, Ok(("", 9)));
+
+        let res = number("-545");
+        assert_eq!(res, Ok(("", -545)));
+
+        let res = number("-545abc");
+        assert_eq!(res, Ok(("abc", -545)));
+
+        let res = number("323.32");
+        assert_eq!(res, Ok((".32", 323)));
+
+        let res = number("u323");
+        assert!(res.is_err());
+    }
 
     #[test]
     fn parse_expression() {

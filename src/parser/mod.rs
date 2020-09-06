@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag_no_case, take_till},
     character::complete::{
-        alpha1, alphanumeric0, char, digit1, multispace1, not_line_ending, one_of, space0, space1,
+        alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
     },
     combinator::{map, opt, peek, recognize},
     multi::{many0, separated_list},
@@ -203,12 +203,6 @@ fn instruction(i: &str) -> IResult<&str, Instruction> {
     Ok((i, instruction))
 }
 
-fn number(i: &str) -> IResult<&str, i32> {
-    map(recognize(pair(opt(one_of("+-")), digit1)), |num: &str| {
-        num.parse().unwrap()
-    })(i)
-}
-
 fn label(i: &str) -> IResult<&str, &str> {
     recognize(pair(alpha1, alphanumeric0))(i)
 }
@@ -367,27 +361,6 @@ mod test {
                 modifier: Modifier::B
             }
         );
-    }
-
-    #[test]
-    fn parse_number() {
-        let res = number("322");
-        assert_eq!(res, Ok(("", 322)));
-
-        let res = number("+9");
-        assert_eq!(res, Ok(("", 9)));
-
-        let res = number("-545");
-        assert_eq!(res, Ok(("", -545)));
-
-        let res = number("-545abc");
-        assert_eq!(res, Ok(("abc", -545)));
-
-        let res = number("323.32");
-        assert_eq!(res, Ok((".32", 323)));
-
-        let res = number("u323");
-        assert!(res.is_err());
     }
 
     #[test]
