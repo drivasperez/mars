@@ -1,8 +1,15 @@
 use crate::types::*;
 use nom::branch;
-use nom::bytes::complete as bytes;
-use nom::character::complete as character;
+use nom::bytes::complete::{tag_no_case, take_till};
+use nom::character::complete::{
+    alpha1, alphanumeric0, char, digit1, multispace1, not_line_ending, one_of, space0, space1,
+};
+use nom::combinator::{opt, peek, recognize};
+use nom::multi::{many0, separated_list};
+use nom::sequence::{pair, preceded, terminated, tuple};
 use nom::IResult;
+
+pub mod numeric_expr;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Line<'a> {
@@ -13,8 +20,7 @@ pub enum Line<'a> {
 }
 
 fn line(i: &str) -> IResult<&str, Line> {
-    use nom::combinator::peek;
-    let (i, _) = character::space0(i)?;
+    let (i, _) = space0(i)?;
 
     let (i, l) = if peek(definition)(i).is_ok() {
         let (i, (s, e)) = definition(i)?;
@@ -30,7 +36,7 @@ fn line(i: &str) -> IResult<&str, Line> {
         (i, Line::Instruction(l))
     };
 
-    let (i, _) = character::space0(i)?;
+    let (i, _) = space0(i)?;
 
     Ok((i, l))
 }
@@ -50,38 +56,30 @@ fn replace_definitions<'a>(s: &'a str) -> Result<String, Box<dyn std::error::Err
 }
 
 fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    let (i, ls) = nom::multi::separated_list(character::multispace1, line)(i)?;
-    let (i, _) = nom::combinator::opt(bytes::tag_no_case("END"))(i)?;
+    let (i, ls) = separated_list(multispace1, line)(i)?;
+    let (i, _) = opt(tag_no_case("END"))(i)?;
     Ok((i, ls))
 }
 
 fn definition(i: &str) -> IResult<&str, (&str, &str)> {
     let (i, label) = label(i)?;
-    let (i, _) = nom::combinator::recognize(nom::sequence::tuple((
-        character::space1,
-        bytes::tag_no_case("EQU"),
-        character::space1,
-    )))(i)?;
-    let (i, expression) = bytes::take_till(|c| c == ';' || c == '\n' || c == '\r')(i)?;
-    let (i, _) = nom::combinator::opt(comment)(i)?;
+    let (i, _) = recognize(tuple((space1, tag_no_case("EQU"), space1)))(i)?;
+    let (i, expression) = take_till(|c| c == ';' || c == '\n' || c == '\r')(i)?;
+    let (i, _) = opt(comment)(i)?;
 
     Ok((i, (label, expression)))
 }
 
 fn org_statement(i: &str) -> IResult<&str, Expression> {
-    let (i, _) = nom::combinator::recognize(nom::sequence::tuple((
-        character::space0,
-        bytes::tag_no_case("ORG"),
-        character::space1,
-    )))(i)?;
+    let (i, _) = recognize(tuple((space0, tag_no_case("ORG"), space1)))(i)?;
     let (i, res) = expr(i)?;
-    let (i, _) = nom::combinator::opt(nom::sequence::preceded(character::space0, comment))(i)?;
+    let (i, _) = opt(preceded(space0, comment))(i)?;
 
     Ok((i, res))
 }
 
 fn address_mode(i: &str) -> IResult<&str, AddressMode> {
-    let (i, symbol) = character::one_of("#$@<>")(i)?;
+    let (i, symbol) = one_of("#$@<>")(i)?;
 
     let mode = match symbol {
         '$' => AddressMode::Direct,
@@ -96,7 +94,7 @@ fn address_mode(i: &str) -> IResult<&str, AddressMode> {
 }
 
 fn opcode(i: &str) -> IResult<&str, Opcode> {
-    use bytes::tag_no_case as t;
+    use tag_no_case as t;
     let (i, opcode) = branch::alt((
         t("DAT"),
         t("MOV"),
@@ -144,7 +142,7 @@ fn opcode(i: &str) -> IResult<&str, Opcode> {
 }
 
 fn modifier(i: &str) -> IResult<&str, Modifier> {
-    use bytes::tag_no_case as t;
+    use tag_no_case as t;
     let (i, modifier) = branch::alt((t("AB"), t("BA"), t("A"), t("B"), t("F"), t("X"), t("I")))(i)?;
 
     let modifier = match modifier.to_ascii_uppercase().as_str() {
@@ -163,8 +161,7 @@ fn modifier(i: &str) -> IResult<&str, Modifier> {
 
 fn operation(i: &str) -> IResult<&str, Operation> {
     let (i, opcode) = opcode(i)?;
-    let (i, modifier) =
-        nom::combinator::opt(nom::sequence::preceded(character::char('.'), modifier))(i)?;
+    let (i, modifier) = opt(preceded(char('.'), modifier))(i)?;
 
     let modifier = modifier.unwrap_or(match opcode {
         Opcode::Dat | Opcode::Nop => Modifier::F,
@@ -181,7 +178,7 @@ fn operation(i: &str) -> IResult<&str, Operation> {
 }
 
 fn address(i: &str) -> IResult<&str, Address> {
-    let (i, (mode, expression)) = nom::sequence::pair(nom::combinator::opt(address_mode), expr)(i)?;
+    let (i, (mode, expression)) = pair(opt(address_mode), expr)(i)?;
     let mode = mode.unwrap_or(AddressMode::Direct);
 
     Ok((
@@ -194,20 +191,17 @@ fn address(i: &str) -> IResult<&str, Address> {
 }
 
 fn instruction(i: &str) -> IResult<&str, Instruction> {
-    let (i, _) = character::space0(i)?;
+    let (i, _) = space0(i)?;
     let (i, labels) = label_list(i)?;
     let (i, op) = operation(i)?;
-    let (i, _) = character::space1(i)?;
+    let (i, _) = space1(i)?;
     let (i, addr1) = address(i)?;
-    let (i, _) = character::space0(i)?;
-    let (i, addr2) = nom::combinator::opt(nom::sequence::preceded(
-        nom::sequence::tuple((character::space0, character::char(','), character::space0)),
-        address,
-    ))(i)?;
+    let (i, _) = space0(i)?;
+    let (i, addr2) = opt(preceded(tuple((space0, char(','), space0)), address))(i)?;
 
-    let (i, _) = character::space0(i)?;
+    let (i, _) = space0(i)?;
 
-    let (i, _) = nom::combinator::opt(comment)(i)?;
+    let (i, _) = opt(comment)(i)?;
 
     let instruction = Instruction {
         label_list: labels,
@@ -220,10 +214,7 @@ fn instruction(i: &str) -> IResult<&str, Instruction> {
 }
 
 fn number(i: &str) -> IResult<&str, i32> {
-    let (i, (sign, num)) = nom::sequence::pair(
-        nom::combinator::opt(character::one_of("+-")),
-        character::digit1,
-    )(i)?;
+    let (i, (sign, num)) = pair(opt(one_of("+-")), digit1)(i)?;
 
     let sign = sign.unwrap_or('+');
     let mut num: i32 = num.parse().unwrap();
@@ -236,16 +227,13 @@ fn number(i: &str) -> IResult<&str, i32> {
 }
 
 fn label(i: &str) -> IResult<&str, &str> {
-    let (i, label) = nom::combinator::recognize(nom::sequence::pair(
-        character::alpha1,
-        character::alphanumeric0,
-    ))(i)?;
+    let (i, label) = recognize(pair(alpha1, alphanumeric0))(i)?;
 
     Ok((i, label))
 }
 
 fn term(i: &str) -> IResult<&str, Term> {
-    let (i, term) = if let Ok(_) = nom::combinator::peek(number)(i) {
+    let (i, term) = if let Ok(_) = peek(number)(i) {
         let (i, term) = number(i)?;
         let term = Term::Number(term);
         (i, term)
@@ -259,11 +247,11 @@ fn term(i: &str) -> IResult<&str, Term> {
 }
 
 fn expr(i: &str) -> IResult<&str, Expression> {
-    let (i, (head, tail)) = nom::sequence::pair(
+    let (i, (head, tail)) = pair(
         term,
-        nom::multi::many0(nom::sequence::pair(
-            nom::sequence::preceded(character::space0, character::one_of("+-*/%")),
-            nom::sequence::preceded(character::space0, term),
+        many0(pair(
+            preceded(space0, one_of("+-*/%")),
+            preceded(space0, term),
         )),
     )(i)?;
 
@@ -295,16 +283,13 @@ fn expr(i: &str) -> IResult<&str, Expression> {
 }
 
 fn comment(i: &str) -> IResult<&str, &str> {
-    let (i, res) = nom::combinator::recognize(nom::sequence::tuple((
-        character::char(';'),
-        character::not_line_ending,
-    )))(i)?;
+    let (i, res) = recognize(tuple((char(';'), not_line_ending)))(i)?;
 
     Ok((i, res))
 }
 
 fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
-    let res = nom::multi::many0(nom::sequence::terminated(label, character::multispace1))(i)?;
+    let res = many0(terminated(label, multispace1))(i)?;
 
     Ok(res)
 }
