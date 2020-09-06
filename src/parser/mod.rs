@@ -1,9 +1,10 @@
+use crate::error::ParseError;
 use crate::types::*;
 use nom::{
     branch::alt,
     bytes::complete::{tag_no_case, take_till},
     character::complete::{
-        alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
+        alpha1, alphanumeric0, char, digit1, multispace1, not_line_ending, one_of, space0, space1,
     },
     combinator::{map, opt, peek, recognize},
     multi::{many0, separated_list},
@@ -14,6 +15,29 @@ use nom::{
 pub mod numeric_expr;
 
 use numeric_expr::{expr, NumericExpr};
+
+pub fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
+    let (_, ls) = lines(i).map_err(|e| match e {
+        nom::Err::Incomplete(_) => ParseError::Incomplete,
+        nom::Err::Error((_, ek)) | nom::Err::Failure((_, ek)) => ParseError::Parse(ek),
+    })?;
+
+    Ok(ls)
+}
+
+pub fn replace_definitions<'a>(s: &'a str) -> Result<String, Box<dyn std::error::Error + 'a>> {
+    let (_, ls) = lines(s)?;
+
+    let mut replaced = String::from(s);
+
+    for line in ls {
+        if let Line::Definition(label, def) = line {
+            replaced = replaced.replace(label, def.trim());
+        }
+    }
+
+    Ok(replaced)
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Line<'a> {
@@ -43,20 +67,6 @@ fn line(i: &str) -> IResult<&str, Line> {
     let (i, _) = space0(i)?;
 
     Ok((i, l))
-}
-
-fn replace_definitions<'a>(s: &'a str) -> Result<String, Box<dyn std::error::Error + 'a>> {
-    let (_, ls) = lines(s)?;
-
-    let mut replaced = String::from(s);
-
-    for line in ls {
-        if let Line::Definition(label, def) = line {
-            replaced = replaced.replace(label, def.trim());
-        }
-    }
-
-    Ok(replaced)
 }
 
 pub fn lines(i: &str) -> IResult<&str, Vec<Line>> {
@@ -486,7 +496,7 @@ mod test {
     #[test]
     fn parse_lines() {
         let warrior = include_str!("../../warriors/dwarf.red");
-        let (i, res) = lines(warrior).unwrap();
+        let (_, res) = lines(warrior).unwrap();
 
         assert_eq!(
             res,
