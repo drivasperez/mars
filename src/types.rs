@@ -1,4 +1,5 @@
 use crate::parser::numeric_expr::NumericExpr;
+use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Opcode {
@@ -20,6 +21,34 @@ pub enum Opcode {
     Nop,
 }
 
+impl Display for Opcode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use Opcode::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                Dat => "DAT",
+                Mov => "MOV",
+                Add => "ADD",
+                Sub => "SUB",
+                Mul => "MUL",
+                Div => "DIV",
+                Mod => "MOD",
+                Jmp => "JMP",
+                Jmz => "JMZ",
+                Jmn => "JMN",
+                Djn => "DJN",
+                Slt => "SLT",
+                Seq => "SEQ",
+                Sne => "SNE",
+                Spl => "SPL",
+                Nop => "NOP",
+            }
+        )
+    }
+}
+
 impl Opcode {
     pub fn default_modifier(&self) -> Modifier {
         match self {
@@ -31,27 +60,6 @@ impl Opcode {
             }
         }
     }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Term<'a> {
-    Label(&'a str),
-    Number(i32),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum NumericOperation {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum ExpressionListItem<'a> {
-    TermItem(Term<'a>),
-    Operation(NumericOperation),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -76,11 +84,34 @@ pub struct Operation {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AddressMode {
-    Direct,
     Immediate,
-    Indirect,
-    PredecrementIndirect,
-    PostincrementIndirect,
+    Direct,
+    AFieldIndirect,
+    BFieldIndirect,
+    AFieldPredecrementIndirect,
+    BFieldPredecrementIndirect,
+    AFieldPostincrementIndirect,
+    BFieldPostincrementIndirect,
+}
+
+impl Display for AddressMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use AddressMode::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                Immediate => "#",
+                Direct => "$",
+                AFieldIndirect => "*",
+                BFieldIndirect => "@",
+                AFieldPredecrementIndirect => "{",
+                BFieldPredecrementIndirect => "<",
+                AFieldPostincrementIndirect => "}",
+                BFieldPostincrementIndirect => ">",
+            }
+        )
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -92,4 +123,11 @@ pub enum Modifier {
     F,
     X,
     I,
+}
+
+pub struct RawInstruction {
+    opcode: Opcode,
+    modifier: Modifier,
+    addr1: (AddressMode, i32),
+    addr2: (AddressMode, i32),
 }

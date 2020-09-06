@@ -4,7 +4,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag_no_case, take_till},
     character::complete::{
-        alpha1, alphanumeric0, char, digit1, multispace1, not_line_ending, one_of, space0, space1,
+        alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
     },
     combinator::{map, opt, peek, recognize},
     multi::{many0, separated_list},
@@ -93,12 +93,16 @@ fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
 }
 
 fn address_mode(i: &str) -> IResult<&str, AddressMode> {
-    map(one_of("#$@<>"), |symbol| match symbol {
-        '$' => AddressMode::Direct,
-        '#' => AddressMode::Immediate,
-        '@' => AddressMode::Indirect,
-        '<' => AddressMode::PredecrementIndirect,
-        '>' => AddressMode::PostincrementIndirect,
+    use AddressMode::*;
+    map(one_of("#$@*{<}>"), |symbol| match symbol {
+        '#' => Immediate,
+        '$' => Direct,
+        '*' => AddressMode::AFieldIndirect,
+        '@' => BFieldIndirect,
+        '{' => AFieldPredecrementIndirect,
+        '<' => BFieldPredecrementIndirect,
+        '}' => AFieldPostincrementIndirect,
+        '>' => BFieldPostincrementIndirect,
         _ => unreachable!(),
     })(i)
 }
@@ -554,7 +558,7 @@ mod test {
                     },
                     field_b: Some(Address {
                         expr: NumericExpr::Value(ExprValue::Label("target")),
-                        mode: AddressMode::Indirect
+                        mode: AddressMode::BFieldIndirect
                     })
                 }),
                 Line::Instruction(Instruction {

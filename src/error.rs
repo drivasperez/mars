@@ -6,3 +6,6 @@ pub enum ParseError {
     #[error("Warrior incomplete")]
     Incomplete,
 }
+
+#[derive(Error, Debug)]
+pub enum EvaluateError {}
