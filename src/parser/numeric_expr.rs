@@ -79,7 +79,7 @@ impl Display for NumericExpr<'_> {
 }
 
 impl NumericExpr<'_> {
-    fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, ()> {
+    pub fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, ()> {
         let res: i32 = match self {
             Self::Value(val) => match val {
                 ExprValue::Number(n) => *n,
@@ -102,6 +102,15 @@ impl NumericExpr<'_> {
         };
 
         Ok(res)
+    }
+
+    pub fn evaluate_relative(
+        &self,
+        labels: &HashMap<&str, i32>,
+        current_line: i32,
+    ) -> Result<i32, ()> {
+        let abs_value = self.evaluate(labels)?;
+        Ok(abs_value - current_line)
     }
 }
 
@@ -238,5 +247,19 @@ mod test {
             69
         );
         assert!(expr("8 / 0").unwrap().1.evaluate(&labels).is_err())
+    }
+
+    #[test]
+    fn evaluate_relative_expression() {
+        let labels: HashMap<&str, i32> = vec![("hello", 33), ("world", -2)].into_iter().collect();
+
+        assert_eq!(
+            expr("3 + 5")
+                .unwrap()
+                .1
+                .evaluate_relative(&labels, 5)
+                .unwrap(),
+            3
+        );
     }
 }
