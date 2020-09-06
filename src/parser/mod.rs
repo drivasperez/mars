@@ -1,13 +1,15 @@
 use crate::types::*;
-use nom::branch;
-use nom::bytes::complete::{tag_no_case, take_till};
-use nom::character::complete::{
-    alpha1, alphanumeric0, char, digit1, multispace1, not_line_ending, one_of, space0, space1,
+use nom::{
+    branch::alt,
+    bytes::complete::{tag_no_case, take_till},
+    character::complete::{
+        alpha1, alphanumeric0, char, digit1, multispace1, not_line_ending, one_of, space0, space1,
+    },
+    combinator::{opt, peek, recognize},
+    multi::{many0, separated_list},
+    sequence::{pair, preceded, terminated, tuple},
+    IResult,
 };
-use nom::combinator::{opt, peek, recognize};
-use nom::multi::{many0, separated_list};
-use nom::sequence::{pair, preceded, terminated, tuple};
-use nom::IResult;
 
 pub mod numeric_expr;
 
@@ -95,7 +97,7 @@ fn address_mode(i: &str) -> IResult<&str, AddressMode> {
 
 fn opcode(i: &str) -> IResult<&str, Opcode> {
     use tag_no_case as t;
-    let (i, opcode) = branch::alt((
+    let (i, opcode) = alt((
         t("DAT"),
         t("MOV"),
         t("ADD"),
@@ -143,7 +145,7 @@ fn opcode(i: &str) -> IResult<&str, Opcode> {
 
 fn modifier(i: &str) -> IResult<&str, Modifier> {
     use tag_no_case as t;
-    let (i, modifier) = branch::alt((t("AB"), t("BA"), t("A"), t("B"), t("F"), t("X"), t("I")))(i)?;
+    let (i, modifier) = alt((t("AB"), t("BA"), t("A"), t("B"), t("F"), t("X"), t("I")))(i)?;
 
     let modifier = match modifier.to_ascii_uppercase().as_str() {
         "A" => Modifier::A,
@@ -227,9 +229,7 @@ fn number(i: &str) -> IResult<&str, i32> {
 }
 
 fn label(i: &str) -> IResult<&str, &str> {
-    let (i, label) = recognize(pair(alpha1, alphanumeric0))(i)?;
-
-    Ok((i, label))
+    recognize(pair(alpha1, alphanumeric0))(i)
 }
 
 fn term(i: &str) -> IResult<&str, Term> {
@@ -283,15 +283,11 @@ fn expr(i: &str) -> IResult<&str, Expression> {
 }
 
 fn comment(i: &str) -> IResult<&str, &str> {
-    let (i, res) = recognize(tuple((char(';'), not_line_ending)))(i)?;
-
-    Ok((i, res))
+    recognize(tuple((char(';'), not_line_ending)))(i)
 }
 
 fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
-    let res = many0(terminated(label, multispace1))(i)?;
-
-    Ok(res)
+    many0(terminated(label, multispace1))(i)
 }
 
 #[cfg(test)]
