@@ -1,6 +1,7 @@
 use crate::error::EvaluateError;
 use crate::parser::{numeric_expr::NumericExpr, Line};
 use crate::types::*;
+use std::collections::HashMap;
 
 struct Metadata {
     author: Option<String>,
@@ -53,4 +54,17 @@ fn from_lines(lines: Vec<Line>) -> Result<(), EvaluateError> {
 
 fn get_metadata_from_line(line: &str) -> String {
     todo!()
+}
+
+fn get_starting_line(
+    orgs: &Vec<NumericExpr>,
+    labels: &HashMap<&str, i32>,
+) -> Result<usize, EvaluateError> {
+    let starting_line = match orgs.len() {
+        0 => 1,
+        1 => orgs[0].evaluate(labels)?,
+        _ => return Err(EvaluateError::MultipleOrgs),
+    };
+
+    Ok(starting_line as usize)
 }

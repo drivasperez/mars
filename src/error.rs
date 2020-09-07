@@ -8,4 +8,11 @@ pub enum ParseError {
 }
 
 #[derive(Error, Debug)]
-pub enum EvaluateError {}
+pub enum EvaluateError {
+    #[error("Encountered multiple org statements")]
+    MultipleOrgs,
+    #[error("Encountered use of undefined label: {0}")]
+    UndefinedLabel(String),
+    #[error("Encountered divide by zero error")]
+    DivideByZero,
+}

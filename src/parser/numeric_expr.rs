@@ -1,3 +1,4 @@
+use crate::error::EvaluateError;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -77,11 +78,13 @@ impl Display for NumericExpr<'_> {
 }
 
 impl NumericExpr<'_> {
-    pub fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, ()> {
+    pub fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, EvaluateError> {
         let res: i32 = match self {
             Self::Value(val) => match val {
                 ExprValue::Number(n) => *n,
-                ExprValue::Label(ref l) => *labels.get(l).ok_or(())?,
+                ExprValue::Label(l) => *labels
+                    .get(l)
+                    .ok_or_else(|| EvaluateError::UndefinedLabel(String::from(*l)))?,
             },
 
             Self::Paren(ref val) => val.evaluate(labels)?,
@@ -95,7 +98,7 @@ impl NumericExpr<'_> {
             Self::Divide(ref left, ref right) => left
                 .evaluate(labels)?
                 .checked_div(right.evaluate(labels)?)
-                .ok_or(())?,
+                .ok_or(EvaluateError::DivideByZero)?,
             Self::Modulo(ref left, ref right) => left.evaluate(labels)? % right.evaluate(labels)?,
         };
 
@@ -106,7 +109,7 @@ impl NumericExpr<'_> {
         &self,
         labels: &HashMap<&str, i32>,
         current_line: i32,
-    ) -> Result<i32, ()> {
+    ) -> Result<i32, EvaluateError> {
         let abs_value = self.evaluate(labels)?;
         Ok(abs_value - current_line)
     }
