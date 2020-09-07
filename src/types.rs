@@ -1,3 +1,4 @@
+use crate::error::EvaluateError;
 use crate::parser::numeric_expr::{ExprValue, NumericExpr};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
@@ -182,7 +183,7 @@ impl RawInstruction {
         instruction: Instruction,
         labels: &HashMap<&str, i32>,
         current_line: usize,
-    ) -> Result<RawInstruction, EvaluateError> {
+    ) -> Result<Self, EvaluateError> {
         let Instruction {
             label_list: _,
             operation,
