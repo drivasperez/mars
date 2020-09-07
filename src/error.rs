@@ -13,6 +13,8 @@ pub enum EvaluateError {
     MultipleOrgs,
     #[error("Encountered use of undefined label: {0}")]
     UndefinedLabel(String),
+    #[error("Encountered duplicate label definition: {0}")]
+    DuplicateLabelDefinition(String),
     #[error("Encountered divide by zero error")]
     DivideByZero,
 }

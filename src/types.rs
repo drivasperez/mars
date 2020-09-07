@@ -1,4 +1,4 @@
-use crate::parser::numeric_expr::NumericExpr;
+use crate::parser::numeric_expr::{ExprValue, NumericExpr};
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -76,6 +76,15 @@ pub struct Address<'a> {
     pub mode: AddressMode,
 }
 
+impl std::default::Default for Address<'_> {
+    fn default() -> Self {
+        Self {
+            mode: AddressMode::Direct,
+            expr: NumericExpr::Value(ExprValue::Number(0)),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Operation {
     pub opcode: Opcode,
@@ -149,6 +158,22 @@ pub struct RawInstruction {
     modifier: Modifier,
     addr1: (AddressMode, i32),
     addr2: (AddressMode, i32),
+}
+
+impl RawInstruction {
+    pub fn new(
+        opcode: Opcode,
+        modifier: Modifier,
+        addr1: (AddressMode, i32),
+        addr2: (AddressMode, i32),
+    ) -> Self {
+        Self {
+            opcode,
+            modifier,
+            addr1,
+            addr2,
+        }
+    }
 }
 
 impl Display for RawInstruction {

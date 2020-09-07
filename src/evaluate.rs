@@ -45,15 +45,69 @@ fn lines_by_type<'a>(
     (instructions, comments, org_statements)
 }
 
-fn from_lines(lines: Vec<Line>) -> Result<(), EvaluateError> {
+fn instruction_to_raw_instruction(
+    instruction: Instruction,
+    labels: &HashMap<&str, i32>,
+    current_line: usize,
+) -> Result<RawInstruction, EvaluateError> {
+    let Instruction {
+        label_list: _,
+        operation,
+        field_a,
+        field_b,
+    } = instruction;
+
+    let Address { mode, expr } = field_a;
+    let addr1 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+    let Address { mode, expr } = field_b.unwrap_or_default();
+    let addr2 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+
+    let Operation { opcode, modifier } = operation;
+
+    Ok(RawInstruction::new(opcode, modifier, addr1, addr2))
+}
+
+fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
     let mut metadata = Metadata::new();
     let (instructions, comments, org_statements) = lines_by_type(lines);
+    let definitions = get_label_definitions(&instructions)?;
+    let starts_at_line = get_starting_line(&org_statements, &definitions)?;
+    let instructions: Result<Vec<_>, _> = instructions
+        .into_iter()
+        .enumerate()
+        .map(|(i, instruction)| instruction_to_raw_instruction(instruction, &definitions, i))
+        .collect();
+    let instructions = instructions?;
 
-    todo!()
+    Ok(Warrior {
+        instructions,
+        metadata,
+        starts_at_line,
+    })
 }
 
 fn get_metadata_from_line(line: &str) -> String {
     todo!()
+}
+
+fn get_label_definitions<'a>(
+    instructions: &Vec<Instruction<'a>>,
+) -> Result<HashMap<&'a str, i32>, EvaluateError> {
+    let mut definitions = HashMap::new();
+
+    for (index, instruction) in instructions.iter().enumerate() {
+        for label in &instruction.label_list {
+            if definitions.contains_key(label) {
+                return Err(EvaluateError::DuplicateLabelDefinition(String::from(
+                    *label,
+                )));
+            } else {
+                definitions.insert(*label, index as i32);
+            }
+        }
+    }
+
+    Ok(definitions)
 }
 
 fn get_starting_line(
