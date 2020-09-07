@@ -67,23 +67,26 @@ fn instruction_to_raw_instruction(
     Ok(RawInstruction::new(opcode, modifier, addr1, addr2))
 }
 
-fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
-    let mut metadata = Metadata::new();
-    let (instructions, comments, org_statements) = lines_by_type(lines);
-    let definitions = get_label_definitions(&instructions)?;
-    let starts_at_line = get_starting_line(&org_statements, &definitions)?;
-    let instructions: Result<Vec<_>, _> = instructions
-        .into_iter()
-        .enumerate()
-        .map(|(i, instruction)| instruction_to_raw_instruction(instruction, &definitions, i))
-        .collect();
-    let instructions = instructions?;
+impl Warrior {
+    pub fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
+        // TODO: Get the metadata out the full-line
+        let mut metadata = Metadata::new();
+        let (instructions, comments, org_statements) = lines_by_type(lines);
+        let definitions = get_label_definitions(&instructions)?;
+        let starts_at_line = get_starting_line(&org_statements, &definitions)?;
+        let instructions: Result<Vec<_>, _> = instructions
+            .into_iter()
+            .enumerate()
+            .map(|(i, instruction)| instruction_to_raw_instruction(instruction, &definitions, i))
+            .collect();
+        let instructions = instructions?;
 
-    Ok(Warrior {
-        instructions,
-        metadata,
-        starts_at_line,
-    })
+        Ok(Warrior {
+            instructions,
+            metadata,
+            starts_at_line,
+        })
+    }
 }
 
 fn get_metadata_from_line(line: &str) -> String {
