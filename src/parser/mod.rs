@@ -2,16 +2,16 @@ use crate::error::ParseError;
 use crate::types::*;
 use nom::{
     branch::alt,
-    bytes::complete::{tag_no_case, take_till},
+    bytes::complete::{is_a, tag, tag_no_case, take_till, take_until},
     character::complete::{
-        alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
+        alpha1, alphanumeric0, char, multispace1, newline, not_line_ending, one_of, space0, space1,
     },
     combinator::{map, opt, recognize},
     multi::{many0, separated_list},
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
-
+pub mod metadata;
 pub mod numeric_expr;
 
 use numeric_expr::{expr, NumericExpr};
