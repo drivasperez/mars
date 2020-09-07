@@ -158,22 +158,22 @@ impl Display for Modifier {
 pub struct RawInstruction {
     opcode: Opcode,
     modifier: Modifier,
-    addr1: (AddressMode, i32),
-    addr2: (AddressMode, i32),
+    addr_a: (AddressMode, i32),
+    addr_b: (AddressMode, i32),
 }
 
 impl RawInstruction {
     pub fn new(
         opcode: Opcode,
         modifier: Modifier,
-        addr1: (AddressMode, i32),
-        addr2: (AddressMode, i32),
+        addr_a: (AddressMode, i32),
+        addr_b: (AddressMode, i32),
     ) -> Self {
         Self {
             opcode,
             modifier,
-            addr1,
-            addr2,
+            addr_a,
+            addr_b,
         }
     }
 }
@@ -207,7 +207,7 @@ impl Display for RawInstruction {
         write!(
             f,
             "{}.{} {}{}, {}{}",
-            self.opcode, self.modifier, self.addr1.0, self.addr1.1, self.addr2.0, self.addr2.1
+            self.opcode, self.modifier, self.addr_a.0, self.addr_a.1, self.addr_b.0, self.addr_b.1
         )
     }
 }
@@ -220,8 +220,8 @@ mod test {
         let inst = RawInstruction {
             opcode: Opcode::Mov,
             modifier: Modifier::BA,
-            addr1: (AddressMode::Direct, 8),
-            addr2: (AddressMode::AFieldIndirect, 2),
+            addr_a: (AddressMode::Direct, 8),
+            addr_b: (AddressMode::AFieldIndirect, 2),
         };
 
         assert_eq!(format!("{}", inst), String::from("MOV.BA $8, *2"));
