@@ -1,16 +1,18 @@
 use crate::error::ParseError;
 use crate::types::*;
+use metadata::{metadata, MetadataValue};
 use nom::{
     branch::alt,
-    bytes::complete::{is_a, tag, tag_no_case, take_till, take_until},
+    bytes::complete::{tag_no_case, take_till},
     character::complete::{
-        alpha1, alphanumeric0, char, multispace1, newline, not_line_ending, one_of, space0, space1,
+        alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
     },
     combinator::{map, opt, recognize},
     multi::{many0, separated_list},
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
+
 pub mod metadata;
 pub mod numeric_expr;
 
@@ -44,6 +46,7 @@ pub enum Line<'a> {
     Instruction(Instruction<'a>),
     Comment(&'a str),
     OrgStatement(NumericExpr<'a>),
+    MetadataStatement(MetadataValue<'a>),
     Definition(&'a str, &'a str),
 }
 
@@ -52,6 +55,7 @@ fn line(i: &str) -> IResult<&str, Line> {
         space0,
         alt((
             map(definition, |(a, b)| Line::Definition(a, b)),
+            map(metadata, Line::MetadataStatement),
             map(comment, Line::Comment),
             map(org_statement, Line::OrgStatement),
             map(instruction, Line::Instruction),
@@ -489,11 +493,11 @@ mod test {
             res,
             vec![
                 Line::Comment(";redcode"),
-                Line::Comment(";name          Dwarf"),
-                Line::Comment(";author        A. K. Dewdney"),
-                Line::Comment(";version       94.1"),
-                Line::Comment(";date          April 29, 1993"),
-                Line::Comment(";strategy      Bombs every fourth instruction."),
+                Line::MetadataStatement(MetadataValue::Name("Dwarf")),
+                Line::MetadataStatement(MetadataValue::Author("A. K. Dewdney")),
+                Line::MetadataStatement(MetadataValue::Version("94.1")),
+                Line::MetadataStatement(MetadataValue::Date("April 29, 1993")),
+                Line::MetadataStatement(MetadataValue::Strategy("Bombs every fourth instruction.")),
                 Line::OrgStatement(NumericExpr::Value(ExprValue::Label("start"))),
                 Line::Comment("; the label start should be the"),
                 Line::Comment("; first to execute."),

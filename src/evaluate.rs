@@ -39,6 +39,7 @@ fn lines_by_type<'a>(
             Line::Comment(comment) => comments.push(comment),
             Line::OrgStatement(statement) => org_statements.push(statement),
             Line::Instruction(instruction) => instructions.push(instruction),
+            Line::MetadataStatement(metadata) => todo!(),
             Line::Definition(_, _) => {}
         }
     }
