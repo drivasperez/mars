@@ -1,4 +1,5 @@
 use crate::parser::numeric_expr::{ExprValue, NumericExpr};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -173,6 +174,30 @@ impl RawInstruction {
             addr1,
             addr2,
         }
+    }
+}
+
+impl RawInstruction {
+    pub fn from_instruction(
+        instruction: Instruction,
+        labels: &HashMap<&str, i32>,
+        current_line: usize,
+    ) -> Result<RawInstruction, EvaluateError> {
+        let Instruction {
+            label_list: _,
+            operation,
+            field_a,
+            field_b,
+        } = instruction;
+
+        let Address { mode, expr } = field_a;
+        let addr1 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+        let Address { mode, expr } = field_b.unwrap_or_default();
+        let addr2 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+
+        let Operation { opcode, modifier } = operation;
+
+        Ok(RawInstruction::new(opcode, modifier, addr1, addr2))
     }
 }
 

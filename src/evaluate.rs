@@ -45,28 +45,6 @@ fn lines_by_type<'a>(
     (instructions, comments, org_statements)
 }
 
-fn instruction_to_raw_instruction(
-    instruction: Instruction,
-    labels: &HashMap<&str, i32>,
-    current_line: usize,
-) -> Result<RawInstruction, EvaluateError> {
-    let Instruction {
-        label_list: _,
-        operation,
-        field_a,
-        field_b,
-    } = instruction;
-
-    let Address { mode, expr } = field_a;
-    let addr1 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
-    let Address { mode, expr } = field_b.unwrap_or_default();
-    let addr2 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
-
-    let Operation { opcode, modifier } = operation;
-
-    Ok(RawInstruction::new(opcode, modifier, addr1, addr2))
-}
-
 impl Warrior {
     pub fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
         // TODO: Get the metadata out the full-line
@@ -77,7 +55,7 @@ impl Warrior {
         let instructions: Result<Vec<_>, _> = instructions
             .into_iter()
             .enumerate()
-            .map(|(i, instruction)| instruction_to_raw_instruction(instruction, &definitions, i))
+            .map(|(i, instruction)| RawInstruction::from_instruction(instruction, &definitions, i))
             .collect();
         let instructions = instructions?;
 
