@@ -4,10 +4,10 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, tag_no_case, take_till},
     character::complete::{
-        alpha1, alphanumeric0, char, multispace0, multispace1, not_line_ending, one_of, space0,
-        space1,
+        alpha1, alphanumeric0, char, line_ending, multispace0, multispace1, not_line_ending,
+        one_of, space0, space1,
     },
-    combinator::{complete, map, opt, recognize},
+    combinator::{map, opt, recognize},
     multi::{many0, separated_list},
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
@@ -325,7 +325,10 @@ fn line(i: &str) -> IResult<&str, Line> {
 }
 
 pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    terminated(separated_list(multispace1, line), ending_line)(i)
+    terminated(
+        separated_list(tuple((space0, line_ending, multispace0)), line),
+        ending_line,
+    )(i)
 }
 
 fn ending_line(i: &str) -> IResult<&str, ()> {

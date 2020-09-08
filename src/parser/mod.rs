@@ -40,9 +40,15 @@ mod test {
         assert!(lines(&replaced).is_ok());
     }
 
-    // #[test]
-    // fn test_bad_parse() {
-    //     let warrior = include_str!("../../warriors/bad_dwarf.red");
-    //     lines(&warrior).unwrap_err();
-    // }
+    #[test]
+    fn test_bad_dwarf() {
+        let warrior = include_str!("../../warriors/bad_dwarf.red");
+        lines(&warrior).unwrap_err();
+    }
+
+    #[test]
+    fn test_one_line_dwarf() {
+        let warrior = include_str!("../../warriors/one_line_dwarf.red");
+        lines(&warrior).unwrap_err();
+    }
 }
