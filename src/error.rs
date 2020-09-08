@@ -15,6 +15,14 @@ pub enum EvaluateError {
     UndefinedLabel(String),
     #[error("Encountered duplicate label definition: {0}")]
     DuplicateLabelDefinition(String),
+    #[error("Warrior defines name more than once")]
+    DuplicateNameDefinition,
+    #[error("Warrior defines version more than once")]
+    DuplicateVersionDefinition,
+    #[error("Warrior defines author more than once")]
+    DuplicateAuthorDefinition,
+    #[error("Warrior defines date more than once")]
+    DuplicateDateDefinition,
     #[error("Encountered divide by zero error")]
     DivideByZero,
 }

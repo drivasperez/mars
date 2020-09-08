@@ -53,5 +53,23 @@ mod test {
 
         let (_, res) = metadata(";name Hittite    ").unwrap();
         assert_eq!(res, MetadataValue::Name("Hittite"));
+
+        let (_, res) = metadata(";date 23/1/22    ").unwrap();
+        assert_eq!(res, MetadataValue::Date("23/1/22"));
+
+        let (_, res) = metadata(";version    2.2    ").unwrap();
+        assert_eq!(res, MetadataValue::Version("2.2"));
+    }
+
+    #[test]
+    fn invalid_metadata_does_not_parse() {
+        assert!(metadata(";oeaoeaoestrategy This should not parse").is_err());
+
+        assert!(metadata("oeaoe ;author Nor this").is_err());
+        assert!(metadata(
+            "
+        ;author Nor this"
+        )
+        .is_err())
     }
 }

@@ -1,9 +1,10 @@
 use crate::error::EvaluateError;
-use crate::parser::{numeric_expr::NumericExpr, Line};
+use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, Line};
 use crate::types::*;
 use std::collections::HashMap;
 
 struct Metadata {
+    name: Option<String>,
     author: Option<String>,
     date: Option<String>,
     strategy: Option<String>,
@@ -13,11 +14,66 @@ struct Metadata {
 impl Metadata {
     pub fn new() -> Self {
         Self {
+            name: None,
             author: None,
             date: None,
             strategy: None,
             version: None,
         }
+    }
+
+    fn insert_value(&mut self, line: MetadataValue) -> Result<(), EvaluateError> {
+        match line {
+            MetadataValue::Author(author) => self.insert_author(String::from(author))?,
+            MetadataValue::Date(date) => self.insert_date(String::from(date))?,
+            MetadataValue::Strategy(strategy) => self.insert_strategy(String::from(strategy)),
+            MetadataValue::Version(version) => self.insert_version(String::from(version))?,
+            MetadataValue::Name(name) => self.insert_name(String::from(name))?,
+        }
+        Ok(())
+    }
+
+    pub fn insert_author(&mut self, author: String) -> Result<(), EvaluateError> {
+        if let Some(_) = self.author {
+            return Err(EvaluateError::DuplicateAuthorDefinition);
+        };
+
+        self.author = Some(author);
+        Ok(())
+    }
+
+    pub fn insert_name(&mut self, name: String) -> Result<(), EvaluateError> {
+        if let Some(_) = self.name {
+            return Err(EvaluateError::DuplicateNameDefinition);
+        };
+
+        self.name = Some(name);
+        Ok(())
+    }
+
+    pub fn insert_date(&mut self, date: String) -> Result<(), EvaluateError> {
+        if let Some(_) = self.date {
+            return Err(EvaluateError::DuplicateDateDefinition);
+        };
+
+        self.date = Some(date);
+        Ok(())
+    }
+    pub fn insert_version(&mut self, version: String) -> Result<(), EvaluateError> {
+        if let Some(_) = self.version {
+            return Err(EvaluateError::DuplicateVersionDefinition);
+        };
+
+        self.version = Some(version);
+        Ok(())
+    }
+    pub fn insert_strategy(&mut self, strategy: String) {
+        if let Some(ref mut strat) = self.strategy {
+            strat.push('\n');
+            strat.push_str(&strategy);
+        };
+
+        self.date = Some(strategy);
     }
 }
 
