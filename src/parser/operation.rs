@@ -13,6 +13,17 @@ use nom::{
 };
 use std::fmt::{Display, Formatter};
 
+// Structs and Enums
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Line<'a> {
+    Instruction(Instruction<'a>),
+    Comment(&'a str),
+    OrgStatement(NumericExpr<'a>),
+    MetadataStatement(MetadataValue<'a>),
+    Definition(&'a str, &'a str),
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Instruction<'a> {
     pub label_list: Vec<&'a str>,
@@ -41,6 +52,70 @@ pub struct Operation {
     pub opcode: Opcode,
     pub modifier: Modifier,
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum AddressMode {
+    Immediate,
+    Direct,
+    AFieldIndirect,
+    BFieldIndirect,
+    AFieldPredecrementIndirect,
+    BFieldPredecrementIndirect,
+    AFieldPostincrementIndirect,
+    BFieldPostincrementIndirect,
+}
+
+impl Display for AddressMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use AddressMode::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                Immediate => "#",
+                Direct => "$",
+                AFieldIndirect => "*",
+                BFieldIndirect => "@",
+                AFieldPredecrementIndirect => "{",
+                BFieldPredecrementIndirect => "<",
+                AFieldPostincrementIndirect => "}",
+                BFieldPostincrementIndirect => ">",
+            }
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Modifier {
+    A,
+    B,
+    AB,
+    BA,
+    F,
+    X,
+    I,
+}
+
+impl Display for Modifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use Modifier::*;
+        write!(
+            f,
+            "{}",
+            match self {
+                A => "A",
+                B => "B",
+                AB => "AB",
+                BA => "BA",
+                F => "F",
+                X => "X",
+                I => "I",
+            }
+        )
+    }
+}
+
+// Parsers
 
 fn operation(i: &str) -> IResult<&str, Operation> {
     map(
@@ -160,38 +235,6 @@ fn opcode(i: &str) -> IResult<&str, Opcode> {
     )(i)
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum AddressMode {
-    Immediate,
-    Direct,
-    AFieldIndirect,
-    BFieldIndirect,
-    AFieldPredecrementIndirect,
-    BFieldPredecrementIndirect,
-    AFieldPostincrementIndirect,
-    BFieldPostincrementIndirect,
-}
-
-impl Display for AddressMode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use AddressMode::*;
-        write!(
-            f,
-            "{}",
-            match self {
-                Immediate => "#",
-                Direct => "$",
-                AFieldIndirect => "*",
-                BFieldIndirect => "@",
-                AFieldPredecrementIndirect => "{",
-                BFieldPredecrementIndirect => "<",
-                AFieldPostincrementIndirect => "}",
-                BFieldPostincrementIndirect => ">",
-            }
-        )
-    }
-}
-
 fn address_mode(i: &str) -> IResult<&str, AddressMode> {
     use AddressMode::*;
     map(one_of("#$@*{<}>"), |symbol| match symbol {
@@ -205,36 +248,6 @@ fn address_mode(i: &str) -> IResult<&str, AddressMode> {
         '>' => BFieldPostincrementIndirect,
         _ => unreachable!(),
     })(i)
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Modifier {
-    A,
-    B,
-    AB,
-    BA,
-    F,
-    X,
-    I,
-}
-
-impl Display for Modifier {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use Modifier::*;
-        write!(
-            f,
-            "{}",
-            match self {
-                A => "A",
-                B => "B",
-                AB => "AB",
-                BA => "BA",
-                F => "F",
-                X => "X",
-                I => "I",
-            }
-        )
-    }
 }
 
 fn modifier(i: &str) -> IResult<&str, Modifier> {
@@ -294,15 +307,6 @@ fn comment(i: &str) -> IResult<&str, &str> {
 
 fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
     terminated(many0(terminated(label, multispace1)), opt(char(':')))(i)
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Line<'a> {
-    Instruction(Instruction<'a>),
-    Comment(&'a str),
-    OrgStatement(NumericExpr<'a>),
-    MetadataStatement(MetadataValue<'a>),
-    Definition(&'a str, &'a str),
 }
 
 fn line(i: &str) -> IResult<&str, Line> {
