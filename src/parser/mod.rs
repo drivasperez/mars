@@ -12,6 +12,7 @@ use nom::{
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
+use std::borrow::Cow;
 
 pub mod metadata;
 pub mod numeric_expr;
@@ -27,19 +28,17 @@ pub(crate) fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
     Ok(ls)
 }
 
-// TODO: Return Cow<String> instead of String, we don't need to allocate a string if we don't replace anything.
-pub(crate) fn replace_definitions<'a>(s: &'a str) -> Result<String, ParseError> {
+pub(crate) fn replace_definitions<'a>(s: &'a str) -> Result<Cow<str>, ParseError> {
+    let mut val = Cow::from(s);
     let (_, ls) = lines(s).map_err(|_| ParseError::Replace)?;
-
-    let mut replaced = String::from(s);
 
     for line in ls {
         if let Line::Definition(label, def) = line {
-            replaced = replaced.replace(label, def.trim());
+            val = Cow::Owned(val.to_mut().replace(label, def.trim()));
         }
     }
 
-    Ok(replaced)
+    Ok(val)
 }
 
 #[derive(Debug, PartialEq, Eq)]
