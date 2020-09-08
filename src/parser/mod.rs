@@ -1,11 +1,11 @@
 use crate::error::ParseError;
 use std::borrow::Cow;
 
+pub(crate) mod instruction;
 pub(crate) mod metadata;
 pub(crate) mod numeric_expr;
-pub(crate) mod operation;
 
-use operation::{lines, Line};
+use instruction::{lines, Line};
 
 pub(crate) fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
     let (_, ls) = lines(i).map_err(|e| match e {

@@ -1,4 +1,4 @@
-use super::operation::label;
+use super::instruction::label;
 use crate::error::EvaluateError;
 use nom::{
     branch::alt,

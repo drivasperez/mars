@@ -1,5 +1,5 @@
 use crate::error::{Error, EvaluateError, MetadataError};
-use crate::parser::operation::{
+use crate::parser::instruction::{
     Address, AddressMode, Instruction, Line, Modifier, Opcode, Operation,
 };
 use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_definitions};
@@ -246,7 +246,7 @@ fn get_starting_line(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::operation::{AddressMode, Modifier, Opcode};
+    use crate::parser::instruction::{AddressMode, Modifier, Opcode};
     #[test]
     fn display_raw_instruction() {
         let inst = RawInstruction {
