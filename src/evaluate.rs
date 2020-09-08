@@ -82,28 +82,28 @@ impl Warrior {
     }
 
     /// The warrior's name.
-    pub fn name(&mut self) -> &mut Option<String> {
-        &mut self.metadata.name
+    pub fn name(&self) -> &Option<String> {
+        &self.metadata.name
     }
 
     /// The name of the warrior's author.
-    pub fn author(&mut self) -> &mut Option<String> {
-        &mut self.metadata.author
+    pub fn author(&self) -> &Option<String> {
+        &self.metadata.author
     }
 
     /// The publication date of the warrior.
-    pub fn date(&mut self) -> &mut Option<String> {
-        &mut self.metadata.date
+    pub fn date(&self) -> &Option<String> {
+        &self.metadata.date
     }
 
     /// A description of the warrior's strategy.
-    pub fn strategy(&mut self) -> &mut Option<String> {
-        &mut self.metadata.strategy
+    pub fn strategy(&self) -> &Option<String> {
+        &self.metadata.strategy
     }
 
     /// The warrior's version. This does not have to use any particular schema.
-    pub fn version(&mut self) -> &mut Option<String> {
-        &mut self.metadata.version
+    pub fn version(&self) -> &Option<String> {
+        &self.metadata.version
     }
 
     fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
