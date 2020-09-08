@@ -65,7 +65,7 @@ impl Opcode {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Instruction<'a> {
+pub(crate) struct Instruction<'a> {
     pub label_list: Vec<&'a str>,
     pub operation: Operation,
     pub field_a: Address<'a>,
@@ -73,7 +73,7 @@ pub struct Instruction<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Address<'a> {
+pub(crate) struct Address<'a> {
     pub expr: NumericExpr<'a>,
     pub mode: AddressMode,
 }
@@ -179,7 +179,7 @@ impl RawInstruction {
 }
 
 impl RawInstruction {
-    pub fn from_instruction(
+    pub(crate) fn from_instruction(
         instruction: Instruction,
         labels: &HashMap<&str, i32>,
         current_line: usize,

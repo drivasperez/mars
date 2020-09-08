@@ -18,7 +18,7 @@ pub mod numeric_expr;
 
 use numeric_expr::{expr, NumericExpr};
 
-pub fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
+pub(crate) fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
     let (_, ls) = lines(i).map_err(|e| match e {
         nom::Err::Incomplete(_) => ParseError::Incomplete,
         nom::Err::Error((_, ek)) | nom::Err::Failure((_, ek)) => ParseError::Parse(ek),
@@ -28,7 +28,7 @@ pub fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
 }
 
 // TODO: Return Cow<String> instead of String, we don't need to allocate a string if we don't replace anything.
-pub fn replace_definitions<'a>(s: &'a str) -> Result<String, ParseError> {
+pub(crate) fn replace_definitions<'a>(s: &'a str) -> Result<String, ParseError> {
     let (_, ls) = lines(s).map_err(|_| ParseError::Replace)?;
 
     let mut replaced = String::from(s);
@@ -43,7 +43,7 @@ pub fn replace_definitions<'a>(s: &'a str) -> Result<String, ParseError> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Line<'a> {
+pub(crate) enum Line<'a> {
     Instruction(Instruction<'a>),
     Comment(&'a str),
     OrgStatement(NumericExpr<'a>),
@@ -65,7 +65,7 @@ fn line(i: &str) -> IResult<&str, Line> {
     )(i)
 }
 
-pub fn lines(i: &str) -> IResult<&str, Vec<Line>> {
+pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
     terminated(separated_list(multispace1, line), opt(tag_no_case("END")))(i)
 }
 

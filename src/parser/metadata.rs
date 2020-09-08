@@ -9,7 +9,7 @@ use nom::{
 };
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum MetadataValue<'a> {
+pub(crate) enum MetadataValue<'a> {
     Author(&'a str),
     Date(&'a str),
     Strategy(&'a str),
@@ -29,7 +29,7 @@ macro_rules! metadata_comment {
     };
 }
 
-pub fn metadata(i: &str) -> IResult<&str, MetadataValue> {
+pub(crate) fn metadata(i: &str) -> IResult<&str, MetadataValue> {
     alt((
         metadata_comment!("strategy", MetadataValue::Strategy),
         metadata_comment!("name", MetadataValue::Name),

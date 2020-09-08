@@ -13,7 +13,7 @@ use std::fmt;
 use std::fmt::{Debug, Display};
 
 #[derive(Eq, PartialEq)]
-pub enum ExprValue<'a> {
+pub(crate) enum ExprValue<'a> {
     Number(i32),
     Label(&'a str),
 }
@@ -37,7 +37,7 @@ impl Debug for ExprValue<'_> {
 }
 
 #[derive(Eq, PartialEq)]
-pub enum NumericExpr<'a> {
+pub(crate) enum NumericExpr<'a> {
     Value(ExprValue<'a>),
     Add(Box<NumericExpr<'a>>, Box<NumericExpr<'a>>),
     Subtract(Box<NumericExpr<'a>>, Box<NumericExpr<'a>>),
@@ -78,7 +78,7 @@ impl Display for NumericExpr<'_> {
 }
 
 impl NumericExpr<'_> {
-    pub fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, EvaluateError> {
+    pub(crate) fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, EvaluateError> {
         let res: i32 = match self {
             Self::Value(val) => match val {
                 ExprValue::Number(n) => *n,
@@ -105,7 +105,7 @@ impl NumericExpr<'_> {
         Ok(res)
     }
 
-    pub fn evaluate_relative(
+    pub(crate) fn evaluate_relative(
         &self,
         labels: &HashMap<&str, i32>,
         current_line: i32,
@@ -115,7 +115,7 @@ impl NumericExpr<'_> {
     }
 }
 
-pub enum Operation {
+pub(crate) enum Operation {
     Add,
     Subtract,
     Multiply,
@@ -189,7 +189,7 @@ fn term(i: &str) -> IResult<&str, NumericExpr> {
     Ok((i, fold_exprs(initial, remainder)))
 }
 
-pub fn expr(i: &str) -> IResult<&str, NumericExpr> {
+pub(crate) fn expr(i: &str) -> IResult<&str, NumericExpr> {
     let (i, initial) = term(i)?;
     let (i, remainder) = many0(alt((
         |i| {
