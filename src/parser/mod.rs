@@ -34,7 +34,7 @@ pub(crate) fn replace_definitions<'a>(s: &'a str) -> Result<Cow<str>, ParseError
 
     for line in ls {
         if let Line::Definition(label, def) = line {
-            val = Cow::Owned(val.to_mut().replace(label, def.trim()));
+            val = Cow::from(val.to_mut().replace(label, def.trim()));
         }
     }
 
