@@ -1,9 +1,9 @@
 use crate::error::ParseError;
 use std::borrow::Cow;
 
-pub mod metadata;
-pub mod numeric_expr;
-pub mod operation;
+pub(crate) mod metadata;
+pub(crate) mod numeric_expr;
+pub(crate) mod operation;
 
 use operation::{lines, Line};
 

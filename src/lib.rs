@@ -1,3 +1,3 @@
 pub mod error;
-pub mod parser;
+pub(crate) mod parser;
 pub mod warrior;
