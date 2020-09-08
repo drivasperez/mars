@@ -39,4 +39,10 @@ mod test {
         assert_eq!(replaced, warrior.replace("step", "4"));
         assert!(lines(&replaced).is_ok());
     }
+
+    // #[test]
+    // fn test_bad_parse() {
+    //     let warrior = include_str!("../../warriors/bad_dwarf.red");
+    //     lines(&warrior).unwrap_err();
+    // }
 }

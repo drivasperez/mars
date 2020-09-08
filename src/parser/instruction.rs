@@ -2,11 +2,12 @@ use super::metadata::{metadata, MetadataValue};
 use super::numeric_expr::{expr, ExprValue, NumericExpr};
 use nom::{
     branch::alt,
-    bytes::complete::{tag_no_case, take_till},
+    bytes::complete::{tag, tag_no_case, take_till},
     character::complete::{
-        alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
+        alpha1, alphanumeric0, char, multispace0, multispace1, not_line_ending, one_of, space0,
+        space1,
     },
-    combinator::{map, opt, recognize},
+    combinator::{complete, map, opt, recognize},
     multi::{many0, separated_list},
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
@@ -324,7 +325,14 @@ fn line(i: &str) -> IResult<&str, Line> {
 }
 
 pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    terminated(separated_list(multispace1, line), opt(tag_no_case("END")))(i)
+    terminated(separated_list(multispace1, line), ending_line)(i)
+}
+
+fn ending_line(i: &str) -> IResult<&str, ()> {
+    map(
+        alt((delimited(multispace0, tag("END"), multispace0), multispace0)),
+        |_| (),
+    )(i)
 }
 
 fn definition(i: &str) -> IResult<&str, (&str, &str)> {
@@ -597,8 +605,8 @@ mod test {
         let dwarf = include_str!("../../warriors/dwarf.red");
         let imp = include_str!("../../warriors/imp.red");
 
-        assert!(lines(dwarf).is_ok());
-        assert!(lines(imp).is_ok());
+        lines(dwarf).unwrap();
+        lines(imp).unwrap();
     }
 
     #[test]
