@@ -27,8 +27,9 @@ pub fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
     Ok(ls)
 }
 
-pub fn replace_definitions<'a>(s: &'a str) -> Result<String, Box<dyn std::error::Error + 'a>> {
-    let (_, ls) = lines(s)?;
+// TODO: Return Cow<String> instead of String, we don't need to allocate a string if we don't replace anything.
+pub fn replace_definitions<'a>(s: &'a str) -> Result<String, ParseError> {
+    let (_, ls) = lines(s).map_err(|_| ParseError::Replace)?;
 
     let mut replaced = String::from(s);
 

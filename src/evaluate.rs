@@ -1,5 +1,7 @@
-use crate::error::{EvaluateError, MetadataError};
-use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, Line};
+use crate::error::{Error, EvaluateError, MetadataError};
+use crate::parser::{
+    metadata::MetadataValue, numeric_expr::NumericExpr, replace_definitions, Line,
+};
 use crate::types::*;
 use std::collections::HashMap;
 
@@ -72,30 +74,39 @@ pub struct Warrior {
     starts_at_line: usize,
 }
 
-fn lines_by_type<'a>(
-    lines: Vec<Line<'a>>,
-) -> (
-    Vec<Instruction<'a>>,
-    Vec<NumericExpr<'a>>,
-    Vec<MetadataValue>,
-) {
-    let mut org_statements = Vec::new();
-    let mut instructions = Vec::new();
-    let mut metadata = Vec::new();
-
-    for line in lines {
-        match line {
-            Line::OrgStatement(statement) => org_statements.push(statement),
-            Line::Instruction(instruction) => instructions.push(instruction),
-            Line::MetadataStatement(value) => metadata.push(value),
-            _ => {}
-        }
-    }
-    (instructions, org_statements, metadata)
-}
-
 impl Warrior {
-    pub fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
+    pub fn parse(input: &str) -> Result<Warrior, Error> {
+        let input = replace_definitions(input).map_err(Error::Parse)?;
+        let ls = crate::parser::parse(&input).map_err(Error::Parse)?;
+        Self::from_lines(ls).map_err(Error::Evaluate)
+    }
+
+    /// The warrior's name.
+    pub fn name(&mut self) -> &mut Option<String> {
+        &mut self.metadata.name
+    }
+
+    /// The name of the warrior's author.
+    pub fn author(&mut self) -> &mut Option<String> {
+        &mut self.metadata.author
+    }
+
+    /// The publication date of the warrior.
+    pub fn date(&mut self) -> &mut Option<String> {
+        &mut self.metadata.date
+    }
+
+    /// A description of the warrior's strategy.
+    pub fn strategy(&mut self) -> &mut Option<String> {
+        &mut self.metadata.strategy
+    }
+
+    /// The warrior's version. This does not have to use any particular schema.
+    pub fn version(&mut self) -> &mut Option<String> {
+        &mut self.metadata.version
+    }
+
+    fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
         let mut metadata = Metadata::new();
         let (instructions, org_statements, metadata_values) = lines_by_type(lines);
         for line in metadata_values {
@@ -118,6 +129,28 @@ impl Warrior {
             starts_at_line,
         })
     }
+}
+
+fn lines_by_type<'a>(
+    lines: Vec<Line<'a>>,
+) -> (
+    Vec<Instruction<'a>>,
+    Vec<NumericExpr<'a>>,
+    Vec<MetadataValue>,
+) {
+    let mut org_statements = Vec::new();
+    let mut instructions = Vec::new();
+    let mut metadata = Vec::new();
+
+    for line in lines {
+        match line {
+            Line::OrgStatement(statement) => org_statements.push(statement),
+            Line::Instruction(instruction) => instructions.push(instruction),
+            Line::MetadataStatement(value) => metadata.push(value),
+            _ => {}
+        }
+    }
+    (instructions, org_statements, metadata)
 }
 
 fn get_label_definitions<'a>(

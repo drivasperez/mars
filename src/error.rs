@@ -3,6 +3,8 @@ use thiserror::Error;
 pub enum ParseError {
     #[error("Couldn't parse warrior")]
     Parse(nom::error::ErrorKind),
+    #[error("Couldn't replace definitions")]
+    Replace,
     #[error("Warrior incomplete")]
     Incomplete,
 }
@@ -31,4 +33,12 @@ pub enum MetadataError {
     DuplicateAuthorDefinition,
     #[error("Warrior defines date more than once")]
     DuplicateDateDefinition,
+}
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("Error parsing warrior: {0}")]
+    Parse(ParseError),
+    #[error("Error evaluating warrior: {0}")]
+    Evaluate(EvaluateError),
 }
