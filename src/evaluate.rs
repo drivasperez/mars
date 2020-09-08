@@ -1,4 +1,4 @@
-use crate::error::EvaluateError;
+use crate::error::{EvaluateError, MetadataError};
 use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, Line};
 use crate::types::*;
 use std::collections::HashMap;
@@ -9,6 +9,15 @@ struct Metadata {
     date: Option<String>,
     strategy: Option<String>,
     version: Option<String>,
+}
+
+macro_rules! insert_once {
+    ($field:expr, $value:expr, $error:path) => {{
+        if let Some(_) = $field {
+            return Err($error);
+        };
+        $field = Some($value);
+    }};
 }
 
 impl Metadata {
@@ -22,62 +31,42 @@ impl Metadata {
         }
     }
 
-    fn insert_value(&mut self, line: MetadataValue) -> Result<(), EvaluateError> {
+    pub fn insert_value(&mut self, line: MetadataValue) -> Result<(), MetadataError> {
         match line {
-            MetadataValue::Author(author) => self.insert_author(String::from(author))?,
-            MetadataValue::Date(date) => self.insert_date(String::from(date))?,
-            MetadataValue::Strategy(strategy) => self.insert_strategy(String::from(strategy)),
-            MetadataValue::Version(version) => self.insert_version(String::from(version))?,
-            MetadataValue::Name(name) => self.insert_name(String::from(name))?,
-        }
-        Ok(())
-    }
+            MetadataValue::Author(author) => insert_once!(
+                self.author,
+                String::from(author),
+                MetadataError::DuplicateAuthorDefinition
+            ),
+            MetadataValue::Date(date) => insert_once!(
+                self.date,
+                String::from(date),
+                MetadataError::DuplicateDateDefinition
+            ),
+            MetadataValue::Version(version) => insert_once!(
+                self.version,
+                String::from(version),
+                MetadataError::DuplicateVersionDefinition
+            ),
+            MetadataValue::Name(name) => insert_once!(
+                self.name,
+                String::from(name),
+                MetadataError::DuplicateNameDefinition
+            ),
+            MetadataValue::Strategy(strategy) => {
+                if let Some(ref mut strat) = self.strategy {
+                    strat.push('\n');
+                    strat.push_str(&strategy);
+                };
 
-    pub fn insert_author(&mut self, author: String) -> Result<(), EvaluateError> {
-        if let Some(_) = self.author {
-            return Err(EvaluateError::DuplicateAuthorDefinition);
+                self.date = Some(String::from(strategy));
+            }
         };
-
-        self.author = Some(author);
         Ok(())
-    }
-
-    pub fn insert_name(&mut self, name: String) -> Result<(), EvaluateError> {
-        if let Some(_) = self.name {
-            return Err(EvaluateError::DuplicateNameDefinition);
-        };
-
-        self.name = Some(name);
-        Ok(())
-    }
-
-    pub fn insert_date(&mut self, date: String) -> Result<(), EvaluateError> {
-        if let Some(_) = self.date {
-            return Err(EvaluateError::DuplicateDateDefinition);
-        };
-
-        self.date = Some(date);
-        Ok(())
-    }
-    pub fn insert_version(&mut self, version: String) -> Result<(), EvaluateError> {
-        if let Some(_) = self.version {
-            return Err(EvaluateError::DuplicateVersionDefinition);
-        };
-
-        self.version = Some(version);
-        Ok(())
-    }
-    pub fn insert_strategy(&mut self, strategy: String) {
-        if let Some(ref mut strat) = self.strategy {
-            strat.push('\n');
-            strat.push_str(&strategy);
-        };
-
-        self.date = Some(strategy);
     }
 }
 
-struct Warrior {
+pub struct Warrior {
     metadata: Metadata,
     instructions: Vec<RawInstruction>,
     starts_at_line: usize,
@@ -85,28 +74,35 @@ struct Warrior {
 
 fn lines_by_type<'a>(
     lines: Vec<Line<'a>>,
-) -> (Vec<Instruction<'a>>, Vec<&str>, Vec<NumericExpr<'a>>) {
+) -> (
+    Vec<Instruction<'a>>,
+    Vec<NumericExpr<'a>>,
+    Vec<MetadataValue>,
+) {
     let mut org_statements = Vec::new();
-    let mut comments = Vec::new();
     let mut instructions = Vec::new();
+    let mut metadata = Vec::new();
 
     for line in lines {
         match line {
-            Line::Comment(comment) => comments.push(comment),
             Line::OrgStatement(statement) => org_statements.push(statement),
             Line::Instruction(instruction) => instructions.push(instruction),
-            Line::MetadataStatement(metadata) => todo!(),
-            Line::Definition(_, _) => {}
+            Line::MetadataStatement(value) => metadata.push(value),
+            _ => {}
         }
     }
-    (instructions, comments, org_statements)
+    (instructions, org_statements, metadata)
 }
 
 impl Warrior {
     pub fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
-        // TODO: Get the metadata out the full-line
         let mut metadata = Metadata::new();
-        let (instructions, comments, org_statements) = lines_by_type(lines);
+        let (instructions, org_statements, metadata_values) = lines_by_type(lines);
+        for line in metadata_values {
+            metadata
+                .insert_value(line)
+                .map_err(EvaluateError::BadMetadata)?;
+        }
         let definitions = get_label_definitions(&instructions)?;
         let starts_at_line = get_starting_line(&org_statements, &definitions)?;
         let instructions: Result<Vec<_>, _> = instructions
@@ -122,10 +118,6 @@ impl Warrior {
             starts_at_line,
         })
     }
-}
-
-fn get_metadata_from_line(line: &str) -> String {
-    todo!()
 }
 
 fn get_label_definitions<'a>(
