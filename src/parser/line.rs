@@ -5,7 +5,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{line_ending, multispace0, space0},
-    combinator::map,
+    combinator::{all_consuming, map},
     multi::separated_list,
     sequence::{delimited, terminated, tuple},
     IResult,
@@ -17,14 +17,24 @@ pub(crate) enum Line<'a> {
     Comment(&'a str),
     OrgStatement(NumericExpr<'a>),
     MetadataStatement(MetadataValue<'a>),
-    Definition(&'a str, &'a str),
+    Definition {
+        label: &'a str,
+        definition: &'a str,
+        full_definition: &'a str,
+    },
 }
 
 fn line(i: &str) -> IResult<&str, Line> {
     delimited(
         space0,
         alt((
-            map(definition, |(a, b)| Line::Definition(a, b)),
+            map(definition, |(label, definition, full_definition)| {
+                Line::Definition {
+                    label,
+                    definition,
+                    full_definition,
+                }
+            }),
             map(metadata, Line::MetadataStatement),
             map(comment, Line::Comment),
             map(org_statement, Line::OrgStatement),
@@ -35,10 +45,10 @@ fn line(i: &str) -> IResult<&str, Line> {
 }
 
 pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    terminated(
+    all_consuming(terminated(
         separated_list(tuple((space0, line_ending, multispace0)), line),
         ending_line,
-    )(i)
+    ))(i)
 }
 
 fn ending_line(i: &str) -> IResult<&str, ()> {
@@ -80,7 +90,11 @@ mod test {
                 Line::OrgStatement(NumericExpr::Value(ExprValue::Label("start"))),
                 Line::Comment("; the label start should be the"),
                 Line::Comment("; first to execute."),
-                Line::Definition("step", "4                 "),
+                Line::Definition {
+                    label: "step",
+                    definition: "4                 ",
+                    full_definition: "step    EQU      4                 "
+                },
                 Line::Comment("; with the character 4."),
                 Line::Instruction(Instruction {
                     label_list: vec!["target"],

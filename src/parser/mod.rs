@@ -22,8 +22,14 @@ pub(crate) fn replace_definitions(s: &str) -> Result<Cow<str>, ParseError> {
     let (_, ls) = lines(s).map_err(|_| ParseError::Replace)?;
 
     for line in ls {
-        if let Line::Definition(label, def) = line {
-            val = Cow::Owned(val.to_mut().replace(label, def.trim()));
+        if let Line::Definition {
+            label,
+            definition,
+            full_definition,
+        } = line
+        {
+            val = Cow::Owned(val.to_mut().replace(full_definition, ""));
+            val = Cow::Owned(val.to_mut().replace(label, definition.trim()));
         }
     }
 
@@ -37,8 +43,13 @@ mod test {
     fn test_replace_definitions() {
         let warrior = include_str!("../../warriors/dwarf.red");
         let replaced = replace_definitions(warrior).unwrap();
-        assert_eq!(replaced, warrior.replace("step", "4"));
-        assert!(lines(&replaced).is_ok());
+        assert_eq!(
+            replaced,
+            warrior
+                .replace("step    EQU      4                 ", "")
+                .replace("step", "4")
+        );
+        lines(&replaced).unwrap();
     }
 
     #[test]

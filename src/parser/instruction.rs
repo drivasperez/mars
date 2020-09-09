@@ -5,7 +5,7 @@ use nom::{
     character::complete::{
         alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
     },
-    combinator::{map, opt, recognize},
+    combinator::{map, opt, peek, recognize},
     multi::many0,
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
@@ -299,13 +299,20 @@ fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
     terminated(many0(terminated(label, multispace1)), opt(char(':')))(i)
 }
 
-pub(super) fn definition(i: &str) -> IResult<&str, (&str, &str)> {
+pub(super) fn definition(i: &str) -> IResult<&str, (&str, &str, &str)> {
+    let (i, full_definition) = peek(recognize(tuple((
+        label,
+        space1,
+        tag_no_case("EQU"),
+        space1,
+        take_till(|c| c == ';' || c == '\n' || c == '\r'),
+    ))))(i)?;
     let (i, label) = label(i)?;
-    let (i, _) = recognize(tuple((space1, tag_no_case("EQU"), space1)))(i)?;
+    let (i, equ) = recognize(tuple((space1, tag_no_case("EQU"), space1)))(i)?;
     let (i, expression) = take_till(|c| c == ';' || c == '\n' || c == '\r')(i)?;
     let (i, _) = opt(comment)(i)?;
 
-    Ok((i, (label, expression)))
+    Ok((i, (label, expression, full_definition)))
 }
 
 pub(super) fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
@@ -535,21 +542,35 @@ mod test {
     fn parse_definition() {
         let (i, res) = definition("step   EQU 4").unwrap();
         assert_eq!(i, "");
-        assert_eq!(res, ("step", "4"));
+        assert_eq!(res, ("step", "4", "step   EQU 4"));
 
         let (i, res) = definition(
             "step   EQU blah + 4 / 2 * something ; here is a comment about this definition",
         )
         .unwrap();
         assert_eq!(i, "");
-        assert_eq!(res, ("step", "blah + 4 / 2 * something "));
+        assert_eq!(
+            res,
+            (
+                "step",
+                "blah + 4 / 2 * something ",
+                "step   EQU blah + 4 / 2 * something "
+            )
+        );
 
         let (i, res) = definition(
             "b33    EQU      4                 ; Replaces all occurrences of 'step'
 ",
         )
         .unwrap();
-        assert_eq!(res, ("b33", "4                 "));
+        assert_eq!(
+            res,
+            (
+                "b33",
+                "4                 ",
+                "b33    EQU      4                 "
+            )
+        );
         assert_eq!(i, "\n")
     }
 
