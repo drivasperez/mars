@@ -1,29 +1,18 @@
-use super::metadata::{metadata, MetadataValue};
 use super::numeric_expr::{expr, ExprValue, NumericExpr};
 use nom::{
     branch::alt,
-    bytes::complete::{tag, tag_no_case, take_till},
+    bytes::complete::{tag_no_case, take_till},
     character::complete::{
-        alpha1, alphanumeric0, char, line_ending, multispace0, multispace1, not_line_ending,
-        one_of, space0, space1,
+        alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
     },
     combinator::{map, opt, recognize},
-    multi::{many0, separated_list},
+    multi::many0,
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
 use std::fmt::{Display, Formatter};
 
 // Structs and Enums
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Line<'a> {
-    Instruction(Instruction<'a>),
-    Comment(&'a str),
-    OrgStatement(NumericExpr<'a>),
-    MetadataStatement(MetadataValue<'a>),
-    Definition(&'a str, &'a str),
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Instruction<'a> {
@@ -275,7 +264,7 @@ fn address(i: &str) -> IResult<&str, Address> {
     })(i)
 }
 
-fn instruction(i: &str) -> IResult<&str, Instruction> {
+pub(super) fn instruction(i: &str) -> IResult<&str, Instruction> {
     let (i, _) = space0(i)?;
     let (i, labels) = label_list(i)?;
     let (i, op) = operation(i)?;
@@ -302,7 +291,7 @@ pub(crate) fn label(i: &str) -> IResult<&str, &str> {
     recognize(pair(alpha1, alphanumeric0))(i)
 }
 
-fn comment(i: &str) -> IResult<&str, &str> {
+pub(super) fn comment(i: &str) -> IResult<&str, &str> {
     recognize(tuple((char(';'), not_line_ending)))(i)
 }
 
@@ -310,35 +299,7 @@ fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
     terminated(many0(terminated(label, multispace1)), opt(char(':')))(i)
 }
 
-fn line(i: &str) -> IResult<&str, Line> {
-    delimited(
-        space0,
-        alt((
-            map(definition, |(a, b)| Line::Definition(a, b)),
-            map(metadata, Line::MetadataStatement),
-            map(comment, Line::Comment),
-            map(org_statement, Line::OrgStatement),
-            map(instruction, Line::Instruction),
-        )),
-        space0,
-    )(i)
-}
-
-pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    terminated(
-        separated_list(tuple((space0, line_ending, multispace0)), line),
-        ending_line,
-    )(i)
-}
-
-fn ending_line(i: &str) -> IResult<&str, ()> {
-    map(
-        alt((delimited(multispace0, tag("END"), multispace0), multispace0)),
-        |_| (),
-    )(i)
-}
-
-fn definition(i: &str) -> IResult<&str, (&str, &str)> {
+pub(super) fn definition(i: &str) -> IResult<&str, (&str, &str)> {
     let (i, label) = label(i)?;
     let (i, _) = recognize(tuple((space1, tag_no_case("EQU"), space1)))(i)?;
     let (i, expression) = take_till(|c| c == ';' || c == '\n' || c == '\r')(i)?;
@@ -347,7 +308,7 @@ fn definition(i: &str) -> IResult<&str, (&str, &str)> {
     Ok((i, (label, expression)))
 }
 
-fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
+pub(super) fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
     delimited(
         recognize(tuple((space0, tag_no_case("ORG"), space1))),
         expr,
@@ -601,95 +562,5 @@ mod test {
         let (i, res) = org_statement("    ORG   flip").unwrap();
         assert_eq!(i, "");
         assert_eq!(format!("{}", res), String::from("flip"));
-    }
-
-    #[test]
-    fn test_warriors() {
-        let dwarf = include_str!("../../warriors/dwarf.red");
-        let imp = include_str!("../../warriors/imp.red");
-
-        lines(dwarf).unwrap();
-        lines(imp).unwrap();
-    }
-
-    #[test]
-    fn parse_lines() {
-        let warrior = include_str!("../../warriors/dwarf.red");
-        let (_, res) = lines(warrior).unwrap();
-
-        assert_eq!(
-            res,
-            vec![
-                Line::Comment(";redcode"),
-                Line::MetadataStatement(MetadataValue::Name("Dwarf")),
-                Line::MetadataStatement(MetadataValue::Author("A. K. Dewdney")),
-                Line::MetadataStatement(MetadataValue::Version("94.1")),
-                Line::MetadataStatement(MetadataValue::Date("April 29, 1993")),
-                Line::MetadataStatement(MetadataValue::Strategy("Bombs every fourth instruction.")),
-                Line::OrgStatement(NumericExpr::Value(ExprValue::Label("start"))),
-                Line::Comment("; the label start should be the"),
-                Line::Comment("; first to execute."),
-                Line::Definition("step", "4                 "),
-                Line::Comment("; with the character 4."),
-                Line::Instruction(Instruction {
-                    label_list: vec!["target"],
-                    operation: Operation {
-                        opcode: Opcode::Dat,
-                        modifier: Modifier::F
-                    },
-                    field_a: Address {
-                        expr: NumericExpr::Value(ExprValue::Number(0)),
-                        mode: AddressMode::Immediate
-                    },
-                    field_b: Some(Address {
-                        expr: NumericExpr::Value(ExprValue::Number(0)),
-                        mode: AddressMode::Immediate
-                    })
-                }),
-                Line::Instruction(Instruction {
-                    label_list: vec!["start"],
-                    operation: Operation {
-                        opcode: Opcode::Add,
-                        modifier: Modifier::AB
-                    },
-                    field_a: Address {
-                        expr: NumericExpr::Value(ExprValue::Label("step")),
-                        mode: AddressMode::Immediate
-                    },
-                    field_b: Some(Address {
-                        expr: NumericExpr::Value(ExprValue::Label("target")),
-                        mode: AddressMode::Direct
-                    })
-                }),
-                Line::Instruction(Instruction {
-                    label_list: vec![],
-                    operation: Operation {
-                        opcode: Opcode::Mov,
-                        modifier: Modifier::AB
-                    },
-                    field_a: Address {
-                        expr: NumericExpr::Value(ExprValue::Number(0)),
-                        mode: AddressMode::Immediate
-                    },
-                    field_b: Some(Address {
-                        expr: NumericExpr::Value(ExprValue::Label("target")),
-                        mode: AddressMode::BFieldIndirect
-                    })
-                }),
-                Line::Instruction(Instruction {
-                    label_list: vec![],
-                    operation: Operation {
-                        opcode: Opcode::Jmp,
-                        modifier: Modifier::A
-                    },
-                    field_a: Address {
-                        expr: NumericExpr::Value(ExprValue::Label("start")),
-                        mode: AddressMode::Direct
-                    },
-                    field_b: None
-                }),
-                Line::Comment("; the instruction labelled start.")
-            ]
-        )
     }
 }

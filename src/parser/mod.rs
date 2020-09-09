@@ -2,10 +2,11 @@ use crate::error::ParseError;
 use std::borrow::Cow;
 
 pub(crate) mod instruction;
+pub(crate) mod line;
 pub(crate) mod metadata;
 pub(crate) mod numeric_expr;
 
-use instruction::{lines, Line};
+use line::{lines, Line};
 
 pub(crate) fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
     let (_, ls) = lines(i).map_err(|e| match e {
@@ -16,7 +17,7 @@ pub(crate) fn parse(i: &str) -> Result<Vec<Line>, ParseError> {
     Ok(ls)
 }
 
-pub(crate) fn replace_definitions<'a>(s: &'a str) -> Result<Cow<str>, ParseError> {
+pub(crate) fn replace_definitions(s: &str) -> Result<Cow<str>, ParseError> {
     let mut val = Cow::from(s);
     let (_, ls) = lines(s).map_err(|_| ParseError::Replace)?;
 

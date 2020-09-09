@@ -1,7 +1,6 @@
 use crate::error::{Error, EvaluateError, MetadataError};
-use crate::parser::instruction::{
-    Address, AddressMode, Instruction, Line, Modifier, Opcode, Operation,
-};
+use crate::parser::instruction::{Address, AddressMode, Instruction, Modifier, Opcode, Operation};
+use crate::parser::line::Line;
 use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_definitions};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -72,7 +71,7 @@ struct Metadata {
 
 macro_rules! insert_once {
     ($field:expr, $value:expr, $error:path) => {{
-        if let Some(_) = $field {
+        if $field.is_some() {
             return Err($error);
         };
         $field = Some($value);
@@ -127,8 +126,8 @@ impl Metadata {
 
 pub struct Warrior {
     metadata: Metadata,
-    instructions: Vec<RawInstruction>,
-    starts_at_line: usize,
+    pub instructions: Vec<RawInstruction>,
+    pub starts_at_line: usize,
 }
 
 impl Warrior {
@@ -211,7 +210,7 @@ fn lines_by_type<'a>(
 }
 
 fn get_label_definitions<'a>(
-    instructions: &Vec<Instruction<'a>>,
+    instructions: &[Instruction<'a>],
 ) -> Result<HashMap<&'a str, i32>, EvaluateError> {
     let mut definitions = HashMap::new();
 
@@ -231,7 +230,7 @@ fn get_label_definitions<'a>(
 }
 
 fn get_starting_line(
-    orgs: &Vec<NumericExpr>,
+    orgs: &[NumericExpr],
     labels: &HashMap<&str, i32>,
 ) -> Result<usize, EvaluateError> {
     let starting_line = match orgs.len() {
