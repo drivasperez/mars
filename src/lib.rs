@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! # A rust library emulating a CoreWar engine
 //!
 //! Something something '95 standard, very cool, really great, try it some time.
