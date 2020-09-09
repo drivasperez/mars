@@ -1,10 +1,66 @@
 use crate::error::{Error, EvaluateError, MetadataError};
-use crate::parser::{
-    metadata::MetadataValue, numeric_expr::NumericExpr, replace_definitions, Line,
-};
-use crate::types::*;
+use crate::parser::instruction::{Address, AddressMode, Instruction, Modifier, Opcode, Operation};
+use crate::parser::line::Line;
+use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_definitions};
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
+pub struct RawInstruction {
+    opcode: Opcode,
+    modifier: Modifier,
+    addr_a: (AddressMode, i32),
+    addr_b: (AddressMode, i32),
+}
+
+impl RawInstruction {
+    pub fn new(
+        opcode: Opcode,
+        modifier: Modifier,
+        addr_a: (AddressMode, i32),
+        addr_b: (AddressMode, i32),
+    ) -> Self {
+        Self {
+            opcode,
+            modifier,
+            addr_a,
+            addr_b,
+        }
+    }
+}
+
+impl RawInstruction {
+    pub(crate) fn from_instruction(
+        instruction: Instruction,
+        labels: &HashMap<&str, i32>,
+        current_line: usize,
+    ) -> Result<Self, EvaluateError> {
+        let Instruction {
+            label_list: _,
+            operation,
+            field_a,
+            field_b,
+        } = instruction;
+
+        let Address { mode, expr } = field_a;
+        let addr1 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+        let Address { mode, expr } = field_b.unwrap_or_default();
+        let addr2 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+
+        let Operation { opcode, modifier } = operation;
+
+        Ok(RawInstruction::new(opcode, modifier, addr1, addr2))
+    }
+}
+
+impl Display for RawInstruction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}.{} {}{}, {}{}",
+            self.opcode, self.modifier, self.addr_a.0, self.addr_a.1, self.addr_b.0, self.addr_b.1
+        )
+    }
+}
 struct Metadata {
     name: Option<String>,
     author: Option<String>,
@@ -15,7 +71,7 @@ struct Metadata {
 
 macro_rules! insert_once {
     ($field:expr, $value:expr, $error:path) => {{
-        if let Some(_) = $field {
+        if $field.is_some() {
             return Err($error);
         };
         $field = Some($value);
@@ -70,8 +126,8 @@ impl Metadata {
 
 pub struct Warrior {
     metadata: Metadata,
-    instructions: Vec<RawInstruction>,
-    starts_at_line: usize,
+    pub instructions: Vec<RawInstruction>,
+    pub starts_at_line: usize,
 }
 
 impl Warrior {
@@ -154,7 +210,7 @@ fn lines_by_type<'a>(
 }
 
 fn get_label_definitions<'a>(
-    instructions: &Vec<Instruction<'a>>,
+    instructions: &[Instruction<'a>],
 ) -> Result<HashMap<&'a str, i32>, EvaluateError> {
     let mut definitions = HashMap::new();
 
@@ -174,7 +230,7 @@ fn get_label_definitions<'a>(
 }
 
 fn get_starting_line(
-    orgs: &Vec<NumericExpr>,
+    orgs: &[NumericExpr],
     labels: &HashMap<&str, i32>,
 ) -> Result<usize, EvaluateError> {
     let starting_line = match orgs.len() {
@@ -184,4 +240,21 @@ fn get_starting_line(
     };
 
     Ok(starting_line as usize)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::parser::instruction::{AddressMode, Modifier, Opcode};
+    #[test]
+    fn display_raw_instruction() {
+        let inst = RawInstruction {
+            opcode: Opcode::Mov,
+            modifier: Modifier::BA,
+            addr_a: (AddressMode::Direct, 8),
+            addr_b: (AddressMode::AFieldIndirect, 2),
+        };
+
+        assert_eq!(format!("{}", inst), String::from("MOV.BA $8, *2"));
+    }
 }

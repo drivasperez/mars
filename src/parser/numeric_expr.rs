@@ -1,3 +1,4 @@
+use super::instruction::label;
 use crate::error::EvaluateError;
 use nom::{
     branch::alt,
@@ -146,7 +147,7 @@ fn factor(i: &str) -> IResult<&str, NumericExpr> {
         map(delimited(multispace0, number, multispace0), |v| {
             NumericExpr::Value(ExprValue::Number(v))
         }),
-        map(delimited(multispace0, super::label, multispace0), |v| {
+        map(delimited(multispace0, label, multispace0), |v| {
             NumericExpr::Value(ExprValue::Label(v))
         }),
         parens,
