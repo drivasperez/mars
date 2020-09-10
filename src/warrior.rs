@@ -1,18 +1,20 @@
 use crate::error::{Error, EvaluateError, MetadataError};
-use crate::parser::instruction::{Address, AddressMode, Instruction, Modifier, Opcode, Operation};
+use crate::parser::instruction::{
+    Address, AddressMode, Modifier, Opcode, Operation, RawInstruction,
+};
 use crate::parser::line::Line;
 use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_definitions};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-pub struct RawInstruction {
+pub struct Instruction {
     opcode: Opcode,
     modifier: Modifier,
     addr_a: (AddressMode, i32),
     addr_b: (AddressMode, i32),
 }
 
-impl RawInstruction {
+impl Instruction {
     pub fn new(
         opcode: Opcode,
         modifier: Modifier,
@@ -28,13 +30,13 @@ impl RawInstruction {
     }
 }
 
-impl RawInstruction {
+impl Instruction {
     pub(crate) fn from_instruction(
-        instruction: Instruction,
+        instruction: RawInstruction,
         labels: &HashMap<&str, i32>,
         current_line: usize,
     ) -> Result<Self, EvaluateError> {
-        let Instruction {
+        let RawInstruction {
             label_list: _,
             operation,
             field_a,
@@ -48,11 +50,11 @@ impl RawInstruction {
 
         let Operation { opcode, modifier } = operation;
 
-        Ok(RawInstruction::new(opcode, modifier, addr1, addr2))
+        Ok(Instruction::new(opcode, modifier, addr1, addr2))
     }
 }
 
-impl Display for RawInstruction {
+impl Display for Instruction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -126,7 +128,7 @@ impl Metadata {
 
 pub struct Warrior {
     metadata: Metadata,
-    pub instructions: Vec<RawInstruction>,
+    pub instructions: Vec<Instruction>,
     pub starts_at_line: usize,
 }
 
@@ -175,7 +177,7 @@ impl Warrior {
         let instructions: Result<Vec<_>, _> = instructions
             .into_iter()
             .enumerate()
-            .map(|(i, instruction)| RawInstruction::from_instruction(instruction, &definitions, i))
+            .map(|(i, instruction)| Instruction::from_instruction(instruction, &definitions, i))
             .collect();
         let instructions = instructions?;
 
@@ -190,7 +192,7 @@ impl Warrior {
 fn lines_by_type<'a>(
     lines: Vec<Line<'a>>,
 ) -> (
-    Vec<Instruction<'a>>,
+    Vec<RawInstruction<'a>>,
     Vec<NumericExpr<'a>>,
     Vec<MetadataValue>,
 ) {
@@ -210,7 +212,7 @@ fn lines_by_type<'a>(
 }
 
 fn get_label_definitions<'a>(
-    instructions: &[Instruction<'a>],
+    instructions: &[RawInstruction<'a>],
 ) -> Result<HashMap<&'a str, i32>, EvaluateError> {
     let mut definitions = HashMap::new();
 
@@ -248,7 +250,7 @@ mod test {
     use crate::parser::instruction::{AddressMode, Modifier, Opcode};
     #[test]
     fn display_raw_instruction() {
-        let inst = RawInstruction {
+        let inst = Instruction {
             opcode: Opcode::Mov,
             modifier: Modifier::BA,
             addr_a: (AddressMode::Direct, 8),
