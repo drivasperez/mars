@@ -5,8 +5,10 @@ use nom::{
     character::complete::{
         alpha1, alphanumeric0, char, multispace1, not_line_ending, one_of, space0, space1,
     },
+    combinator::not,
     combinator::{map, opt, peek, recognize},
     multi::many0,
+    multi::separated_list,
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
 };
@@ -288,6 +290,7 @@ pub(super) fn instruction(i: &str) -> IResult<&str, Instruction> {
 }
 
 pub(crate) fn label(i: &str) -> IResult<&str, &str> {
+    peek(not(opcode))(i)?;
     recognize(pair(alpha1, alphanumeric0))(i)
 }
 
@@ -296,7 +299,10 @@ pub(super) fn comment(i: &str) -> IResult<&str, &str> {
 }
 
 fn label_list(i: &str) -> IResult<&str, Vec<&str>> {
-    terminated(many0(terminated(label, multispace1)), opt(char(':')))(i)
+    terminated(
+        separated_list(multispace1, label),
+        delimited(space0, opt(char(':')), space0),
+    )(i)
 }
 
 pub(super) fn definition(i: &str) -> IResult<&str, (&str, &str, &str)> {
@@ -482,6 +488,9 @@ mod test {
         assert!(label("0hello").is_err());
         assert!(label(";hello").is_err());
         assert!(label("'hello").is_err());
+
+        label("MOV").unwrap_err();
+        label("    DAT").unwrap_err();
     }
 
     #[test]
@@ -506,6 +515,9 @@ mod test {
         let (i, l) = label_list("").unwrap();
         assert_eq!(i, "");
         assert_eq!(l, Vec::<&str>::new());
+
+        let (i, l) = label_list("imp: mov.i").unwrap();
+        assert_eq!(i, "mov.i");
     }
 
     #[test]

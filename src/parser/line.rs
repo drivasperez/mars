@@ -74,6 +74,11 @@ mod test {
     }
 
     #[test]
+    fn one_label_with_colon() {
+        line("imp:    mov.i   imp, imp+1").unwrap();
+    }
+
+    #[test]
     fn parse_lines() {
         let warrior = include_str!("../../warriors/dwarf.red");
         let (_, res) = lines(warrior).unwrap();
