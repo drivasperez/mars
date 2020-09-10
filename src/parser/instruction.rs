@@ -16,7 +16,7 @@ use std::fmt::{Display, Formatter};
 // Structs and Enums
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Instruction<'a> {
+pub(crate) struct RawInstruction<'a> {
     pub label_list: Vec<&'a str>,
     pub operation: Operation,
     pub field_a: Address<'a>,
@@ -263,7 +263,7 @@ fn address(i: &str) -> IResult<&str, Address> {
     })(i)
 }
 
-pub(super) fn instruction(i: &str) -> IResult<&str, Instruction> {
+pub(super) fn instruction(i: &str) -> IResult<&str, RawInstruction> {
     let (i, _) = space0(i)?;
     let (i, labels) = label_list(i)?;
     let (i, op) = operation(i)?;
@@ -274,7 +274,7 @@ pub(super) fn instruction(i: &str) -> IResult<&str, Instruction> {
 
     let (i, _) = space0(i)?;
 
-    let instruction = Instruction {
+    let instruction = RawInstruction {
         label_list: labels,
         operation: op,
         field_a: addr1,
