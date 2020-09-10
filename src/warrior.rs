@@ -63,6 +63,17 @@ impl Display for Instruction {
         )
     }
 }
+
+impl Default for Instruction {
+    fn default() -> Self {
+        Self {
+            opcode: Opcode::Dat,
+            modifier: Modifier::F,
+            addr_a: (AddressMode::Direct, 0),
+            addr_b: (AddressMode::Direct, 0),
+        }
+    }
+}
 struct Metadata {
     name: Option<String>,
     author: Option<String>,
