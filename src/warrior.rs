@@ -5,6 +5,7 @@ use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
+#[derive(Debug)]
 pub struct RawInstruction {
     opcode: Opcode,
     modifier: Modifier,
@@ -42,9 +43,9 @@ impl RawInstruction {
         } = instruction;
 
         let Address { mode, expr } = field_a;
-        let addr1 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+        let addr1 = (mode, expr.evaluate(labels, current_line as i32)?);
         let Address { mode, expr } = field_b.unwrap_or_default();
-        let addr2 = (mode, expr.evaluate_relative(labels, current_line as i32)?);
+        let addr2 = (mode, expr.evaluate(labels, current_line as i32)?);
 
         let Operation { opcode, modifier } = operation;
 
@@ -61,12 +62,43 @@ impl Display for RawInstruction {
         )
     }
 }
-struct Metadata {
+
+/// Metadata about a warrior, which can include its name, author, creation date, version and a summary of
+/// its strategy.
+#[derive(Debug)]
+pub struct Metadata {
     name: Option<String>,
     author: Option<String>,
     date: Option<String>,
     strategy: Option<String>,
     version: Option<String>,
+}
+
+impl Metadata {
+    /// The warrior's name.
+    pub fn name(&self) -> Option<&String> {
+        self.name.as_ref()
+    }
+
+    /// The name of the warrior's author.
+    pub fn author(&self) -> Option<&String> {
+        self.author.as_ref()
+    }
+
+    /// The publication date of the warrior.
+    pub fn date(&self) -> Option<&String> {
+        self.date.as_ref()
+    }
+
+    /// A description of the warrior's strategy.
+    pub fn strategy(&self) -> Option<&String> {
+        self.strategy.as_ref()
+    }
+
+    /// The warrior's version. This does not have to use any particular schema.
+    pub fn version(&self) -> Option<&String> {
+        self.version.as_ref()
+    }
 }
 
 macro_rules! insert_once {
@@ -89,7 +121,7 @@ impl Metadata {
         }
     }
 
-    pub fn insert_value(&mut self, line: MetadataValue) -> Result<(), MetadataError> {
+    fn insert_value(&mut self, line: MetadataValue) -> Result<(), MetadataError> {
         match line {
             MetadataValue::Author(author) => insert_once!(
                 self.author,
@@ -117,17 +149,31 @@ impl Metadata {
                     strat.push_str(&strategy);
                 };
 
-                self.date = Some(String::from(strategy));
+                self.strategy = Some(String::from(strategy));
             }
         };
         Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct Warrior {
-    metadata: Metadata,
-    pub instructions: Vec<RawInstruction>,
-    pub starts_at_line: usize,
+    pub(crate) metadata: Metadata,
+    pub(crate) instructions: Vec<RawInstruction>,
+
+    pub(crate) starts_at_line: usize,
+}
+
+impl Display for Warrior {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} by {} - {} lines",
+            &self.metadata.name.as_deref().unwrap_or("Unnamed warrior"),
+            &self.metadata.author.as_deref().unwrap_or("Unnamed author"),
+            self.instructions.len()
+        )
+    }
 }
 
 impl Warrior {
@@ -135,31 +181,6 @@ impl Warrior {
         let input = replace_definitions(input).map_err(Error::Parse)?;
         let ls = crate::parser::parse(&input).map_err(Error::Parse)?;
         Self::from_lines(ls).map_err(Error::Evaluate)
-    }
-
-    /// The warrior's name.
-    pub fn name(&self) -> &Option<String> {
-        &self.metadata.name
-    }
-
-    /// The name of the warrior's author.
-    pub fn author(&self) -> &Option<String> {
-        &self.metadata.author
-    }
-
-    /// The publication date of the warrior.
-    pub fn date(&self) -> &Option<String> {
-        &self.metadata.date
-    }
-
-    /// A description of the warrior's strategy.
-    pub fn strategy(&self) -> &Option<String> {
-        &self.metadata.strategy
-    }
-
-    /// The warrior's version. This does not have to use any particular schema.
-    pub fn version(&self) -> &Option<String> {
-        &self.metadata.version
     }
 
     fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
@@ -235,7 +256,7 @@ fn get_starting_line(
 ) -> Result<usize, EvaluateError> {
     let starting_line = match orgs.len() {
         0 => 1,
-        1 => orgs[0].evaluate(labels)?,
+        1 => orgs[0].evaluate(labels, 0)?,
         _ => return Err(EvaluateError::MultipleOrgs),
     };
 
@@ -256,5 +277,34 @@ mod test {
         };
 
         assert_eq!(format!("{}", inst), String::from("MOV.BA $8, *2"));
+    }
+
+    #[test]
+    fn evaluate_dwarf_metadata() {
+        let dwarf_str = include_str!("../warriors/dwarf.red");
+
+        let warrior = Warrior::parse(&dwarf_str).unwrap();
+
+        assert_eq!(warrior.metadata.name().unwrap(), "Dwarf");
+        assert_eq!(warrior.metadata.author().unwrap(), "A. K. Dewdney");
+        assert_eq!(warrior.metadata.version().unwrap(), "94.1");
+        assert_eq!(warrior.metadata.date().unwrap(), "April 29, 1993");
+
+        let bad_dwarf_str = include_str!("../warriors/bad_dwarf.red");
+
+        Warrior::parse(&bad_dwarf_str).unwrap_err();
+    }
+
+    #[test]
+    fn evaluate_dwarf_lines() {
+        let dwarf_str = include_str!("../warriors/dwarf.red");
+        let warrior = Warrior::parse(&dwarf_str).unwrap();
+
+        assert_eq!(warrior.instructions.len(), 4);
+
+        assert_eq!(format!("{}", warrior.instructions[0]), "DAT.F #0, #0");
+        assert_eq!(format!("{}", warrior.instructions[1]), "ADD.AB #4, $-1");
+        assert_eq!(format!("{}", warrior.instructions[2]), "MOV.AB #0, @-2");
+        assert_eq!(format!("{}", warrior.instructions[3]), "JMP.A $-2, $0");
     }
 }

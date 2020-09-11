@@ -79,40 +79,44 @@ impl Display for NumericExpr<'_> {
 }
 
 impl NumericExpr<'_> {
-    pub(crate) fn evaluate(&self, labels: &HashMap<&str, i32>) -> Result<i32, EvaluateError> {
-        let res: i32 = match self {
-            Self::Value(val) => match val {
-                ExprValue::Number(n) => *n,
-                ExprValue::Label(l) => *labels
-                    .get(l)
-                    .ok_or_else(|| EvaluateError::UndefinedLabel(String::from(*l)))?,
-            },
-
-            Self::Paren(ref val) => val.evaluate(labels)?,
-            Self::Add(ref left, ref right) => left.evaluate(labels)? + right.evaluate(labels)?,
-            Self::Subtract(ref left, ref right) => {
-                left.evaluate(labels)? - right.evaluate(labels)?
-            }
-            Self::Multiply(ref left, ref right) => {
-                left.evaluate(labels)? * right.evaluate(labels)?
-            }
-            Self::Divide(ref left, ref right) => left
-                .evaluate(labels)?
-                .checked_div(right.evaluate(labels)?)
-                .ok_or(EvaluateError::DivideByZero)?,
-            Self::Modulo(ref left, ref right) => left.evaluate(labels)? % right.evaluate(labels)?,
-        };
-
-        Ok(res)
-    }
-
-    pub(crate) fn evaluate_relative(
+    pub(crate) fn evaluate(
         &self,
         labels: &HashMap<&str, i32>,
         current_line: i32,
     ) -> Result<i32, EvaluateError> {
-        let abs_value = self.evaluate(labels)?;
-        Ok(abs_value - current_line)
+        let mut is_label = false;
+
+        let res: i32 = match self {
+            Self::Value(val) => match val {
+                ExprValue::Number(n) => *n,
+                ExprValue::Label(l) => {
+                    is_label = true;
+                    *labels
+                        .get(l)
+                        .ok_or_else(|| EvaluateError::UndefinedLabel(String::from(*l)))?
+                }
+            },
+
+            Self::Paren(ref val) => val.evaluate(labels, current_line)?,
+            Self::Add(ref left, ref right) => {
+                left.evaluate(labels, current_line)? + right.evaluate(labels, current_line)?
+            }
+            Self::Subtract(ref left, ref right) => {
+                left.evaluate(labels, current_line)? - right.evaluate(labels, current_line)?
+            }
+            Self::Multiply(ref left, ref right) => {
+                left.evaluate(labels, current_line)? * right.evaluate(labels, current_line)?
+            }
+            Self::Divide(ref left, ref right) => left
+                .evaluate(labels, current_line)?
+                .checked_div(right.evaluate(labels, current_line)?)
+                .ok_or(EvaluateError::DivideByZero)?,
+            Self::Modulo(ref left, ref right) => {
+                left.evaluate(labels, current_line)? % right.evaluate(labels, current_line)?
+            }
+        };
+
+        Ok(if !is_label { res } else { res - current_line })
     }
 }
 
@@ -264,27 +268,31 @@ mod test {
     fn evaluate_expression() {
         let labels: HashMap<&str, i32> = vec![("hello", 33), ("world", -2)].into_iter().collect();
 
-        assert_eq!(expr("3 + 5").unwrap().1.evaluate(&labels).unwrap(), 8);
-        assert_eq!(expr("3 + -5").unwrap().1.evaluate(&labels).unwrap(), -2);
-        assert_eq!(expr("3 + 5 * 2").unwrap().1.evaluate(&labels).unwrap(), 13);
+        assert_eq!(expr("3 + 5").unwrap().1.evaluate(&labels, 0).unwrap(), 8);
+        assert_eq!(expr("3 + -5").unwrap().1.evaluate(&labels, 0).unwrap(), -2);
         assert_eq!(
-            expr("3 + hello * 2").unwrap().1.evaluate(&labels).unwrap(),
+            expr("3 + 5 * 2").unwrap().1.evaluate(&labels, 0).unwrap(),
+            13
+        );
+        assert_eq!(
+            expr("3 + hello * 2")
+                .unwrap()
+                .1
+                .evaluate(&labels, 0)
+                .unwrap(),
             69
         );
-        assert!(expr("8 / 0").unwrap().1.evaluate(&labels).is_err())
+        assert!(expr("8 / 0").unwrap().1.evaluate(&labels, 0).is_err())
     }
 
     #[test]
     fn evaluate_relative_expression() {
         let labels: HashMap<&str, i32> = vec![("hello", 33), ("world", -2)].into_iter().collect();
 
+        assert_eq!(expr("3 + 5").unwrap().1.evaluate(&labels, 5).unwrap(), 8);
         assert_eq!(
-            expr("3 + 5")
-                .unwrap()
-                .1
-                .evaluate_relative(&labels, 5)
-                .unwrap(),
-            3
+            expr("3 + hello").unwrap().1.evaluate(&labels, 5).unwrap(),
+            31
         );
     }
 }
