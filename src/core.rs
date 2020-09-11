@@ -1,4 +1,7 @@
-use crate::warrior::{Instruction, Warrior};
+use crate::{
+    error::CoreError,
+    warrior::{Instruction, Warrior},
+};
 pub struct Core {
     core_size: usize,
     cycles_before_tie: usize,
@@ -56,6 +59,74 @@ impl Core {
     pub fn initial_instruction(&mut self, initial_instruction: InitialInstruction) -> &mut Self {
         self.initial_instruction = initial_instruction;
         self
+    }
+
+    /// The maximum number of instructions allowed per warrior.
+    pub fn instruction_limit(&mut self, instruction_limit: usize) -> &mut Self {
+        self.instruction_limit = instruction_limit;
+        self
+    }
+
+    /// Each warrior can spawn multiple additional tasks. This variable sets the maximum
+    /// number of tasks allowed per warrior. In other words, this is the size of each warrior's task queue.
+    pub fn maximum_number_of_tasks(&mut self, maximum_number_of_tasks: usize) -> &mut Self {
+        self.maximum_number_of_tasks = maximum_number_of_tasks;
+        self
+    }
+
+    /// The minimum number of instructions from the first instruction
+    /// of one warrior to the first instruction of the next warrior.
+    pub fn minimum_separation(&mut self, minimum_separation: usize) -> &mut Self {
+        self.minimum_separation = minimum_separation;
+        self
+    }
+    /// This is the range available for warriors to read information
+    /// from core.  Attempts to read outside the limits of this range
+    /// result in reading within the local readable range.  The range
+    /// is centered on the current instruction.  Thus, a range of
+    /// 500 limits reading to offsets of (-249 -> +250) from the
+    /// currently executing instruction.  The read limit can therefore
+    /// be considered a mini-core within core.  An attempt to read
+    /// location PC+251 reads location PC-249 instead.  An attempt to
+    /// read location PC+500 reads location PC instead.
+    ///
+    /// Read distance must be a factor of core size, otherwise the
+    /// above defined behaviour is not guaranteed.
+    pub fn read_distance(&mut self, read_distance: usize) -> &mut Self {
+        self.read_distance = read_distance;
+        self
+    }
+
+    /// The number of instructions from the first instruction of one
+    /// warrior to the first instruction of the next warrior.
+    /// Separation can be set to `Random`, meaning separations will be
+    /// chosen randomly from those larger than the minimum separation.
+    pub fn separation(&mut self, separation: Separation) -> &mut Self {
+        self.separation = separation;
+        self
+    }
+
+    /// This is the range available for warriors to write information
+    /// to core.  Attempts to write outside the limits of this range
+    /// result in writing within the local writable range.  The range
+    /// is centered on the current instruction.  Thus, a range of 500
+    /// limits writing to offsets of (-249 -> +250) from the
+    /// currently executing instruction.  The write limit can
+    /// therefore be considered a mini-core within core.  An attempt
+    /// to write location PC+251 writes to location PC-249 instead.  
+    /// An attempt to write to location PC+500 writes to location PC
+    /// instead.
+    ///
+    /// Write distance must be a factor of core size, otherwise the
+    /// above defined behaviour is not guaranteed.
+    pub fn write_distance(&mut self, write_distance: usize) -> &mut Self {
+        self.write_distance = write_distance;
+        self
+    }
+
+    pub fn load_warriors(&mut self, warriors: &[Warrior]) -> Result<&mut Self, CoreError> {
+        // TODO: Implement this, checking things like max length.
+        Ok(self)
     }
 }
 
