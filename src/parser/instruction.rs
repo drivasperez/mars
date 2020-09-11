@@ -276,8 +276,6 @@ pub(super) fn instruction(i: &str) -> IResult<&str, Instruction> {
 
     let (i, _) = space0(i)?;
 
-    let (i, _) = opt(comment)(i)?;
-
     let instruction = Instruction {
         label_list: labels,
         operation: op,
@@ -315,17 +313,12 @@ pub(super) fn definition(i: &str) -> IResult<&str, (&str, &str, &str)> {
     let (i, label) = label(i)?;
     let (i, _) = recognize(tuple((space1, tag_no_case("EQU"), space1)))(i)?;
     let (i, expression) = take_till(|c| c == ';' || c == '\n' || c == '\r')(i)?;
-    let (i, _) = opt(comment)(i)?;
 
     Ok((i, (label, expression, full_definition)))
 }
 
 pub(super) fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
-    delimited(
-        tuple((space0, tag_no_case("ORG"), space1)),
-        expr,
-        opt(preceded(space0, comment)),
-    )(i)
+    preceded(tuple((space0, tag_no_case("ORG"), space1)), expr)(i)
 }
 
 #[cfg(test)]
@@ -521,15 +514,13 @@ mod test {
 
     #[test]
     fn parse_instruction() {
-        let (i, _) =
-            instruction("target  DAT.F   #0,     #0         ; Pointer to target instruction.\n")
-                .unwrap();
+        let (i, _) = instruction("target  DAT.F   #0,     #0         \n").unwrap();
 
         assert_eq!(i, "\n");
 
         let (i, instr) = instruction(
             "start
-                something else ADD.AB  #step,   target    ; Increments pointer by step.",
+                something else ADD.AB  #step,   target    ",
         )
         .unwrap();
         assert_eq!(instr.label_list, vec!["start", "something", "else"]);
@@ -554,10 +545,7 @@ mod test {
         assert_eq!(i, "");
         assert_eq!(res, ("step", "4", "step   EQU 4"));
 
-        let (i, res) = definition(
-            "step   EQU blah + 4 / 2 * something ; here is a comment about this definition",
-        )
-        .unwrap();
+        let (i, res) = definition("step   EQU blah + 4 / 2 * something ").unwrap();
         assert_eq!(i, "");
         assert_eq!(
             res,
@@ -569,7 +557,7 @@ mod test {
         );
 
         let (i, res) = definition(
-            "b33    EQU      4                 ; Replaces all occurrences of 'step'
+            "b33    EQU      4                 
 ",
         )
         .unwrap();

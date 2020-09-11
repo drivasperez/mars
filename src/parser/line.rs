@@ -5,6 +5,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag_no_case,
     character::complete::{line_ending, multispace0, space0},
+    combinator::opt,
     combinator::{all_consuming, map},
     multi::separated_list,
     sequence::preceded,
@@ -26,22 +27,25 @@ pub(crate) enum Line<'a> {
 }
 
 fn line(i: &str) -> IResult<&str, Line> {
-    delimited(
-        space0,
-        alt((
-            map(org_statement, Line::OrgStatement),
-            map(definition, |(label, definition, full_definition)| {
-                Line::Definition {
-                    label,
-                    definition,
-                    full_definition,
-                }
-            }),
-            map(metadata, Line::MetadataStatement),
-            map(comment, Line::Comment),
-            map(instruction, Line::Instruction),
-        )),
-        space0,
+    terminated(
+        delimited(
+            space0,
+            alt((
+                map(org_statement, Line::OrgStatement),
+                map(definition, |(label, definition, full_definition)| {
+                    Line::Definition {
+                        label,
+                        definition,
+                        full_definition,
+                    }
+                }),
+                map(metadata, Line::MetadataStatement),
+                map(comment, Line::Comment),
+                map(instruction, Line::Instruction),
+            )),
+            space0,
+        ),
+        opt(comment),
     )(i)
 }
 
