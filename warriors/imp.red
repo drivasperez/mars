@@ -3,5 +3,5 @@
 ;author A.K. Dewdney
         org     imp
 
-imp:    mov.i   imp, imp+1
+imp blimp:    mov.i   imp, imp+1
         end

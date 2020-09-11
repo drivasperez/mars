@@ -200,7 +200,6 @@ fn opcode(i: &str) -> IResult<&str, Opcode> {
             t("SPL"),
             t("SEQ"),
             t("SNE"),
-            t("EQU"),
             t("NOP"),
         )),
         |opcode: &str| match opcode.to_ascii_uppercase().as_str() {
@@ -508,7 +507,7 @@ mod test {
         assert_eq!(i, "");
         assert_eq!(l, Vec::<&str>::new());
 
-        let (i, l) = label_list("imp: mov.i").unwrap();
+        let (i, _l) = label_list("imp: mov.i").unwrap();
         assert_eq!(i, "mov.i");
     }
 
@@ -516,7 +515,7 @@ mod test {
     fn parse_instruction() {
         let (i, _) = instruction("target  DAT.F   #0,     #0         \n").unwrap();
 
-        assert_eq!(i, "");
+        assert_eq!(i, "\n");
 
         let (i, instr) = instruction(
             "start

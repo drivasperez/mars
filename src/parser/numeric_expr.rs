@@ -3,7 +3,7 @@ use crate::error::EvaluateError;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{digit1, multispace0, one_of},
+    character::complete::{digit1, one_of, space0},
     combinator::{map, opt, recognize},
     multi::many0,
     sequence::{delimited, pair, preceded},
@@ -132,22 +132,22 @@ fn number(i: &str) -> IResult<&str, i32> {
 
 fn parens(i: &str) -> IResult<&str, NumericExpr> {
     delimited(
-        multispace0,
+        space0,
         delimited(
             tag("("),
             map(expr, |e| NumericExpr::Paren(Box::new(e))),
             tag(")"),
         ),
-        multispace0,
+        space0,
     )(i)
 }
 
 fn factor(i: &str) -> IResult<&str, NumericExpr> {
     alt((
-        map(delimited(multispace0, number, multispace0), |v| {
+        map(delimited(space0, number, space0), |v| {
             NumericExpr::Value(ExprValue::Number(v))
         }),
-        map(delimited(multispace0, label, multispace0), |v| {
+        map(delimited(space0, label, space0), |v| {
             NumericExpr::Value(ExprValue::Label(v))
         }),
         parens,

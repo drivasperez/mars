@@ -31,7 +31,6 @@ fn line(i: &str) -> IResult<&str, Line> {
         delimited(
             space0,
             alt((
-                map(org_statement, Line::OrgStatement),
                 map(definition, |(label, definition, full_definition)| {
                     Line::Definition {
                         label,
@@ -39,6 +38,7 @@ fn line(i: &str) -> IResult<&str, Line> {
                         full_definition,
                     }
                 }),
+                map(org_statement, Line::OrgStatement),
                 map(metadata, Line::MetadataStatement),
                 map(comment, Line::Comment),
                 map(instruction, Line::Instruction),
@@ -59,10 +59,7 @@ pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
 
 fn ending_line(i: &str) -> IResult<&str, ()> {
     map(
-        alt((
-            delimited(multispace0, tag_no_case("END"), multispace0),
-            multispace0,
-        )),
+        delimited(multispace0, tag_no_case("END"), multispace0),
         |_| (),
     )(i)
 }
