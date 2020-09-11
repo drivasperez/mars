@@ -7,6 +7,7 @@ use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
+#[derive(Debug)]
 pub struct Instruction {
     opcode: Opcode,
     modifier: Modifier,
@@ -74,6 +75,7 @@ impl Default for Instruction {
         }
     }
 }
+#[derive(Debug)]
 struct Metadata {
     name: Option<String>,
     author: Option<String>,
@@ -137,6 +139,7 @@ impl Metadata {
     }
 }
 
+#[derive(Debug)]
 pub struct Warrior {
     metadata: Metadata,
     pub instructions: Vec<Instruction>,

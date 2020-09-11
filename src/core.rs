@@ -2,6 +2,7 @@ use crate::{
     error::CoreError,
     warrior::{Instruction, Warrior},
 };
+#[derive(Debug)]
 pub struct Core {
     core_size: usize,
     cycles_before_tie: usize,
@@ -38,7 +39,7 @@ impl Core {
         Core::default()
     }
 
-    /// Sets the core's size. Core size is the number of instructions which make the up core
+    /// Sets the core's size. Core size is the number of instructions which make up the core
     /// during the battle.
     pub fn core_size(&mut self, core_size: usize) -> &mut Self {
         self.core_size = core_size;
@@ -132,6 +133,7 @@ impl Core {
 
 /// The number of instructions from the first instruction of one warrior to the first instruction of the next warrior.
 /// If a core's separation is `Random`, separations will be chosen randomly from the set of numbers larger than the core's minimum separation.
+#[derive(Debug)]
 pub enum Separation {
     Random,
     Fixed(usize),
@@ -140,6 +142,7 @@ pub enum Separation {
 ///The initial instruction is that instruction which is preloaded
 /// into core prior to loading warriors. If set to `Random`, core
 /// instructions are filled with randomly generated instructions.
+#[derive(Debug)]
 pub enum InitialInstruction {
     Random,
     Fixed(Instruction),
