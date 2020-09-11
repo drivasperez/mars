@@ -44,7 +44,7 @@ pub struct Operation {
     pub modifier: Modifier,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AddressMode {
     Immediate,
     Direct,
@@ -76,7 +76,7 @@ impl Display for AddressMode {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Modifier {
     A,
     B,
@@ -118,7 +118,7 @@ fn operation(i: &str) -> IResult<&str, Operation> {
     )(i)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Opcode {
     Dat,
     Mov,

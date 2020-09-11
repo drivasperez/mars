@@ -7,12 +7,12 @@ use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instruction {
-    opcode: Opcode,
-    modifier: Modifier,
-    addr_a: (AddressMode, i32),
-    addr_b: (AddressMode, i32),
+    pub(crate) opcode: Opcode,
+    pub(crate) modifier: Modifier,
+    pub(crate) addr_a: (AddressMode, i32),
+    pub(crate) addr_b: (AddressMode, i32),
 }
 
 impl Instruction {
@@ -121,6 +121,12 @@ macro_rules! insert_once {
         };
         $field = Some($value);
     }};
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Metadata {
