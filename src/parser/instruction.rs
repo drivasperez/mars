@@ -516,7 +516,7 @@ mod test {
     fn parse_instruction() {
         let (i, _) = instruction("target  DAT.F   #0,     #0         \n").unwrap();
 
-        assert_eq!(i, "\n");
+        assert_eq!(i, "");
 
         let (i, instr) = instruction(
             "start
@@ -529,13 +529,13 @@ mod test {
 
         let (i, _) = instruction("MOV.AB  #0,     @target    ; Bombs target instruction.").unwrap();
 
-        assert_eq!(i, "");
+        assert_eq!(i, "; Bombs target instruction.");
 
         let (i, instr) =
             instruction("         JMP.A    start             ; Same as JMP.A -2.  Loops back to")
                 .unwrap();
 
-        assert_eq!(i, "");
+        assert_eq!(i, "; Same as JMP.A -2.  Loops back to");
         assert_eq!(instr.label_list.len(), 0);
     }
 
