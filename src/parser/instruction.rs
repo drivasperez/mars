@@ -200,7 +200,6 @@ fn opcode(i: &str) -> IResult<&str, Opcode> {
             t("SPL"),
             t("SEQ"),
             t("SNE"),
-            t("ORG"),
             t("EQU"),
             t("NOP"),
         )),
@@ -222,7 +221,7 @@ fn opcode(i: &str) -> IResult<&str, Opcode> {
             "SEQ" => Opcode::Seq,
             "SNE" => Opcode::Sne,
             "NOP" => Opcode::Nop,
-            _ => unreachable!(),
+            _ => unreachable!(opcode),
         },
     )(i)
 }
@@ -530,8 +529,7 @@ mod test {
 
         let (i, instr) = instruction(
             "start
-                something else
-                ADD.AB  #step,   target    ; Increments pointer by step.",
+                something else ADD.AB  #step,   target    ; Increments pointer by step.",
         )
         .unwrap();
         assert_eq!(instr.label_list, vec!["start", "something", "else"]);

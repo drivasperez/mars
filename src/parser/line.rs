@@ -3,7 +3,7 @@ use super::metadata::{metadata, MetadataValue};
 use super::numeric_expr::NumericExpr;
 use nom::{
     branch::alt,
-    bytes::complete::tag,
+    bytes::complete::tag_no_case,
     character::complete::{line_ending, multispace0, space0},
     combinator::{all_consuming, map},
     multi::separated_list,
@@ -28,6 +28,7 @@ fn line(i: &str) -> IResult<&str, Line> {
     delimited(
         space0,
         alt((
+            map(org_statement, Line::OrgStatement),
             map(definition, |(label, definition, full_definition)| {
                 Line::Definition {
                     label,
@@ -37,7 +38,6 @@ fn line(i: &str) -> IResult<&str, Line> {
             }),
             map(metadata, Line::MetadataStatement),
             map(comment, Line::Comment),
-            map(org_statement, Line::OrgStatement),
             map(instruction, Line::Instruction),
         )),
         space0,
@@ -53,7 +53,10 @@ pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
 
 fn ending_line(i: &str) -> IResult<&str, ()> {
     map(
-        alt((delimited(multispace0, tag("END"), multispace0), multispace0)),
+        alt((
+            delimited(multispace0, tag_no_case("END"), multispace0),
+            multispace0,
+        )),
         |_| (),
     )(i)
 }
