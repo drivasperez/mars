@@ -1,21 +1,21 @@
 use crate::{
     error::CoreError,
-    parser::instruction::Opcode,
+    executor::Executive,
     warrior::{Instruction, Warrior},
 };
 use std::collections::VecDeque;
 #[derive(Debug)]
 pub struct Core {
-    core_size: usize,
-    cycles_before_tie: usize,
-    initial_instruction: Instruction,
-    instruction_limit: usize,
-    maximum_number_of_tasks: usize,
-    minimum_separation: usize,
-    read_distance: usize,
-    write_distance: usize,
-    separation: usize,
-    warriors: Vec<Warrior>,
+    pub(crate) core_size: usize,
+    pub(crate) cycles_before_tie: usize,
+    pub(crate) initial_instruction: InitialInstruction,
+    pub(crate) instruction_limit: usize,
+    pub(crate) maximum_number_of_tasks: usize,
+    pub(crate) minimum_separation: usize,
+    pub(crate) read_distance: usize,
+    pub(crate) write_distance: usize,
+    pub(crate) separation: Separation,
+    pub(crate) warriors: Vec<Warrior>,
 }
 
 impl Default for Core {
@@ -23,14 +23,13 @@ impl Default for Core {
         Self {
             core_size: 8000,
             cycles_before_tie: 80_000,
-            initial_instruction: Instruction::default(),
+            initial_instruction: InitialInstruction::Fixed(Instruction::default()),
             instruction_limit: 100,
             maximum_number_of_tasks: 8000,
             minimum_separation: 100,
             read_distance: 8000,
             write_distance: 8000,
-            // TODO: should be random separation.
-            separation: 400,
+            separation: Separation::Random,
             warriors: Vec::new(),
         }
     }
@@ -61,7 +60,7 @@ impl Core {
     /// initial instruction could be set to `Random`, meaning core
     /// instructions are filled with randomly generated instructions.
     pub fn initial_instruction(&mut self, initial_instruction: InitialInstruction) -> &mut Self {
-        self.initial_instruction = initial_instruction.extract();
+        self.initial_instruction = initial_instruction;
         self
     }
 
@@ -107,7 +106,7 @@ impl Core {
     /// Separation can be set to `Random`, meaning separations will be
     /// chosen randomly from those larger than the minimum separation.
     pub fn separation(&mut self, separation: Separation) -> &mut Self {
-        self.separation = separation.extract();
+        self.separation = separation;
         self
     }
 
@@ -143,9 +142,10 @@ impl Core {
             maximum_number_of_tasks,
             ..
         } = self;
-        let mut core_instructions = vec![initial_instruction.clone(); self.core_size];
+        let mut core_instructions = vec![initial_instruction.clone().extract(); self.core_size];
 
         let mut offset = 0_usize;
+        let separation = separation.clone().extract();
 
         let mut initial_offsets: Vec<usize> = warriors.iter().map(|w| w.starts_at_line).collect();
         for (i, warrior) in warriors.iter().enumerate() {
@@ -177,83 +177,6 @@ impl Core {
             total_instructions: 0,
             living_warriors_count: warriors.len(),
         })
-    }
-}
-
-enum ExecutionOutcome {
-    Continue,
-    GameOver,
-}
-
-pub struct Executive<'a> {
-    core: &'a Core,
-    instructions: Vec<Instruction>,
-    task_queues: Vec<VecDeque<usize>>,
-    current_queue: usize,
-    total_instructions: usize,
-    living_warriors_count: usize,
-}
-
-impl Executive<'_> {
-    pub fn run(&mut self) {
-        loop {
-            if let ExecutionOutcome::GameOver = self.run_once() {
-                break;
-            }
-        }
-    }
-
-    fn run_once(&mut self) -> ExecutionOutcome {
-        let current_queue = &mut self.task_queues[self.current_queue];
-        let task = match current_queue.pop_front() {
-            Some(v) => v,
-            None => {
-                self.living_warriors_count -= 1;
-                if self.living_warriors_count == 0 {
-                    return ExecutionOutcome::GameOver;
-                } else {
-                    return ExecutionOutcome::Continue;
-                }
-            }
-        };
-
-        let task = &self.instructions[task];
-
-        let next_task: Option<usize> = match task.opcode {
-            Opcode::Dat => None,
-            Opcode::Mov => todo!(),
-            Opcode::Add => todo!(),
-            Opcode::Sub => todo!(),
-            Opcode::Mul => todo!(),
-            Opcode::Div => todo!(),
-            Opcode::Mod => todo!(),
-            Opcode::Jmp => todo!(),
-            Opcode::Jmz => todo!(),
-            Opcode::Jmn => todo!(),
-            Opcode::Djn => todo!(),
-            Opcode::Slt => todo!(),
-            Opcode::Seq => todo!(),
-            Opcode::Sne => todo!(),
-            Opcode::Spl => todo!(),
-            Opcode::Nop => todo!(),
-        };
-
-        if let Some(x) = next_task {
-            current_queue.push_back(x);
-        };
-
-        self.current_queue = if self.current_queue == self.core.warriors.len() - 1 {
-            0
-        } else {
-            self.current_queue + 1
-        };
-
-        self.total_instructions += 1;
-        if self.total_instructions > self.core.instruction_limit {
-            return ExecutionOutcome::GameOver;
-        };
-
-        todo!();
     }
 }
 

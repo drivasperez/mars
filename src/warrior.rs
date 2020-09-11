@@ -177,7 +177,7 @@ impl Metadata {
 
 #[derive(Debug)]
 pub struct Warrior {
-    pub(crate) metadata: Metadata,
+    pub metadata: Metadata,
     pub(crate) instructions: Vec<Instruction>,
 
     pub(crate) starts_at_line: usize,

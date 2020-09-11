@@ -25,5 +25,6 @@
 //!
 pub mod core;
 pub mod error;
+pub mod executor;
 pub(crate) mod parser;
 pub mod warrior;
