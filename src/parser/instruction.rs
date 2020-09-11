@@ -322,7 +322,7 @@ pub(super) fn definition(i: &str) -> IResult<&str, (&str, &str, &str)> {
 
 pub(super) fn org_statement(i: &str) -> IResult<&str, NumericExpr> {
     delimited(
-        recognize(tuple((space0, tag_no_case("ORG"), space1))),
+        tuple((space0, tag_no_case("ORG"), space1)),
         expr,
         opt(preceded(space0, comment)),
     )(i)

@@ -45,7 +45,8 @@ fn line(i: &str) -> IResult<&str, Line> {
 }
 
 pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    all_consuming(terminated(
+    all_consuming(delimited(
+        multispace0,
         separated_list(tuple((space0, line_ending, multispace0)), line),
         ending_line,
     ))(i)
