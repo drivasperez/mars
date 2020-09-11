@@ -1,7 +1,5 @@
 use crate::warrior::{Instruction, Warrior};
 pub struct Core {
-    /// Core size is the number of instructions which make up core
-    /// during the battle.
     core_size: usize,
     cycles_before_tie: usize,
     initial_instruction: InitialInstruction,
