@@ -36,6 +36,12 @@ pub enum MetadataError {
 }
 
 #[derive(Error, Debug)]
+pub enum CoreError {
+    #[error("Couldn't load warrior")]
+    CouldNotLoadWarrior,
+}
+
+#[derive(Error, Debug)]
 pub enum Error {
     #[error("Error parsing warrior: {0}")]
     Parse(ParseError),

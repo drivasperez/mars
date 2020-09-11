@@ -1,4 +1,4 @@
-use super::instruction::{comment, definition, instruction, org_statement, Instruction};
+use super::instruction::{comment, definition, instruction, org_statement, RawInstruction};
 use super::metadata::{metadata, MetadataValue};
 use super::numeric_expr::NumericExpr;
 use nom::{
@@ -14,7 +14,7 @@ use nom::{
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Line<'a> {
-    Instruction(Instruction<'a>),
+    Instruction(RawInstruction<'a>),
     Comment(&'a str),
     OrgStatement(NumericExpr<'a>),
     MetadataStatement(MetadataValue<'a>),
@@ -109,7 +109,7 @@ mod test {
                     full_definition: "step    EQU      4                 "
                 },
                 Line::Comment("; with the character 4."),
-                Line::Instruction(Instruction {
+                Line::Instruction(RawInstruction {
                     label_list: vec!["target"],
                     operation: Operation {
                         opcode: Opcode::Dat,
@@ -124,7 +124,7 @@ mod test {
                         mode: AddressMode::Immediate
                     })
                 }),
-                Line::Instruction(Instruction {
+                Line::Instruction(RawInstruction {
                     label_list: vec!["start"],
                     operation: Operation {
                         opcode: Opcode::Add,
@@ -139,7 +139,7 @@ mod test {
                         mode: AddressMode::Direct
                     })
                 }),
-                Line::Instruction(Instruction {
+                Line::Instruction(RawInstruction {
                     label_list: vec![],
                     operation: Operation {
                         opcode: Opcode::Mov,
@@ -154,7 +154,7 @@ mod test {
                         mode: AddressMode::BFieldIndirect
                     })
                 }),
-                Line::Instruction(Instruction {
+                Line::Instruction(RawInstruction {
                     label_list: vec![],
                     operation: Operation {
                         opcode: Opcode::Jmp,
