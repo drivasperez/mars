@@ -7,6 +7,7 @@ use nom::{
     character::complete::{line_ending, multispace0, space0},
     combinator::{all_consuming, map},
     multi::separated_list,
+    sequence::preceded,
     sequence::{delimited, terminated, tuple},
     IResult,
 };
@@ -69,11 +70,14 @@ mod test {
     use crate::parser::instruction::*;
     use crate::parser::numeric_expr::*;
     #[test]
-    fn test_warriors() {
+    fn test_dwarf() {
         let dwarf = include_str!("../../warriors/dwarf.red");
-        let imp = include_str!("../../warriors/imp.red");
-
         lines(dwarf).unwrap();
+    }
+
+    #[test]
+    fn test_imp() {
+        let imp = include_str!("../../warriors/imp.red");
         lines(imp).unwrap();
     }
 
