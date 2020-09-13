@@ -37,8 +37,10 @@ pub enum MetadataError {
 
 #[derive(Error, Debug)]
 pub enum CoreError {
-    #[error("Couldn't load warrior")]
-    CouldNotLoadWarrior,
+    #[error("Encountered a warrior of zero length: {0}")]
+    EmptyWarrior(String),
+    #[error("Encountered a warrior of length {0} greater than max length {1}: {2}")]
+    WarriorTooLong(usize, usize, String),
 }
 
 #[derive(Error, Debug)]

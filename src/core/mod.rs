@@ -1,4 +1,6 @@
-use crate::core::Core;
+mod corebuilder;
+pub use corebuilder::*;
+
 use crate::parser::instruction::Opcode;
 use crate::warrior::{Instruction, Warrior};
 use std::collections::VecDeque;
@@ -8,13 +10,19 @@ enum ExecutionOutcome {
     GameOver,
 }
 
+/// The outcome of a single match.
+///
+/// If only a single warrior remains in the match,
+/// the match is counted as a win for that warrior. If the game's instruction counter
+/// reaches its maximum value before a winner can be declared,
+/// the match is a draw between all warriors that are still active.
 pub enum MatchOutcome<'a> {
     Win(&'a Warrior),
     Draw(Vec<&'a Warrior>),
 }
 
-pub struct Executive<'a> {
-    pub(crate) core: &'a Core,
+pub struct Core<'a> {
+    pub(crate) core: &'a CoreBuilder,
     pub(crate) instructions: Vec<Instruction>,
     pub(crate) task_queues: Vec<VecDeque<usize>>,
     pub(crate) current_queue: usize,
@@ -22,7 +30,7 @@ pub struct Executive<'a> {
     pub(crate) living_warriors_count: usize,
 }
 
-impl Executive<'_> {
+impl Core<'_> {
     pub fn run(&mut self) {
         loop {
             if let ExecutionOutcome::GameOver = self.run_once() {

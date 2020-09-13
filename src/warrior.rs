@@ -89,28 +89,28 @@ pub struct Metadata {
 
 impl Metadata {
     /// The warrior's name.
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|s| s.as_str())
     }
 
     /// The name of the warrior's author.
-    pub fn author(&self) -> Option<&String> {
-        self.author.as_ref()
+    pub fn author(&self) -> Option<&str> {
+        self.author.as_ref().map(|s| s.as_str())
     }
 
     /// The publication date of the warrior.
-    pub fn date(&self) -> Option<&String> {
-        self.date.as_ref()
+    pub fn date(&self) -> Option<&str> {
+        self.date.as_ref().map(|s| s.as_str())
     }
 
     /// A description of the warrior's strategy.
-    pub fn strategy(&self) -> Option<&String> {
-        self.strategy.as_ref()
+    pub fn strategy(&self) -> Option<&str> {
+        self.strategy.as_ref().map(|s| s.as_str())
     }
 
     /// The warrior's version. This does not have to use any particular schema.
-    pub fn version(&self) -> Option<&String> {
-        self.version.as_ref()
+    pub fn version(&self) -> Option<&str> {
+        self.version.as_ref().map(|s| s.as_str())
     }
 }
 
@@ -200,6 +200,14 @@ impl Warrior {
         let input = replace_definitions(input).map_err(Error::Parse)?;
         let ls = crate::parser::parse(&input).map_err(Error::Parse)?;
         Self::from_lines(ls).map_err(Error::Evaluate)
+    }
+
+    pub fn len(&self) -> usize {
+        self.instructions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.instructions.is_empty()
     }
 
     fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {

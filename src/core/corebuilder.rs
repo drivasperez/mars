@@ -1,24 +1,25 @@
 use crate::{
     error::CoreError,
-    executor::Executive,
     warrior::{Instruction, Warrior},
 };
+
+use super::Core;
 use std::collections::VecDeque;
 #[derive(Debug)]
-pub struct Core {
-    pub(crate) core_size: usize,
-    pub(crate) cycles_before_tie: usize,
-    pub(crate) initial_instruction: InitialInstruction,
-    pub(crate) instruction_limit: usize,
-    pub(crate) maximum_number_of_tasks: usize,
-    pub(crate) minimum_separation: usize,
-    pub(crate) read_distance: usize,
-    pub(crate) write_distance: usize,
-    pub(crate) separation: Separation,
-    pub(crate) warriors: Vec<Warrior>,
+pub struct CoreBuilder {
+    pub(super) core_size: usize,
+    pub(super) cycles_before_tie: usize,
+    pub(super) initial_instruction: InitialInstruction,
+    pub(super) instruction_limit: usize,
+    pub(super) maximum_number_of_tasks: usize,
+    pub(super) minimum_separation: usize,
+    pub(super) read_distance: usize,
+    pub(super) write_distance: usize,
+    pub(super) separation: Separation,
+    pub(super) warriors: Vec<Warrior>,
 }
 
-impl Default for Core {
+impl Default for CoreBuilder {
     fn default() -> Self {
         Self {
             core_size: 8000,
@@ -35,10 +36,10 @@ impl Default for Core {
     }
 }
 
-impl Core {
-    /// Creates a new instance of Core with default parameters and no warriors.
+impl CoreBuilder {
+    /// Creates a new instance of CoreBuilder with default parameters and no warriors.
     pub fn new() -> Self {
-        Core::default()
+        CoreBuilder::default()
     }
 
     /// Sets the core's size. Core size is the number of instructions which make up the core
@@ -129,13 +130,28 @@ impl Core {
     }
 
     pub fn load_warriors(&mut self, warriors: &[Warrior]) -> Result<&mut Self, CoreError> {
-        // TODO: Implement this, checking things like max length.
-        todo!()
+        // TODO: Implement this properly, checking things like max length.
+        for warrior in warriors {
+            if warrior.len() > self.instruction_limit {
+                return Err(CoreError::WarriorTooLong(
+                    warrior.len(),
+                    self.instruction_limit,
+                    warrior.metadata.name().unwrap_or("Unnamed").to_owned(),
+                ));
+            }
+            if warrior.is_empty() {
+                return Err(CoreError::EmptyWarrior(
+                    warrior.metadata.name().unwrap_or("Unnamed").to_owned(),
+                ));
+            };
+        }
+
+        Ok(self)
     }
 
-    /// Build the core, returning an [`Executive`](../core/struct.Executive.html) struct.
-    pub fn build(&self) -> Result<Executive, CoreError> {
-        let Core {
+    /// Build the core, consuming the `CoreBuilder` and returning a [`Core`](../struct.Core.html) struct.
+    pub fn build(&self) -> Result<Core, CoreError> {
+        let CoreBuilder {
             initial_instruction,
             separation,
             warriors,
@@ -169,7 +185,7 @@ impl Core {
 
         let warriors: Vec<&Warrior> = warriors.iter().collect();
 
-        Ok(Executive {
+        Ok(Core {
             core: self,
             instructions: core_instructions,
             task_queues,
@@ -180,6 +196,8 @@ impl Core {
     }
 }
 
+/// The separation between warriors at the start of a match.
+///
 /// The number of instructions from the first instruction of one warrior to the first instruction of the next warrior.
 /// If a core's separation is `Random`, separations will be chosen randomly from the set of numbers larger than the core's minimum separation.
 #[derive(Debug, Clone)]
@@ -198,7 +216,10 @@ impl Separation {
     }
 }
 
-///The initial instruction is that instruction which is preloaded
+/// The value to which the core's memory addresses are initialised
+/// at the beginning of the match.
+///
+/// The initial instruction is that instruction which is preloaded
 /// into core prior to loading warriors. If set to `Random`, core
 /// instructions are filled with randomly generated instructions.
 #[derive(Debug, Clone)]
