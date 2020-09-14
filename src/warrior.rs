@@ -90,7 +90,7 @@ impl Default for Instruction {
 
 /// Metadata about a warrior, which can include its name, author, creation date, version and a summary of
 /// its strategy.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Metadata {
     name: Option<String>,
     author: Option<String>,
@@ -187,7 +187,7 @@ impl Metadata {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Warrior {
     pub metadata: Metadata,
     pub(crate) instructions: Vec<Instruction>,

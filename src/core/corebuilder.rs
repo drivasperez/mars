@@ -149,6 +149,8 @@ impl CoreBuilder {
             };
         }
 
+        self.warriors = warriors.to_vec();
+
         Ok(self)
     }
 
