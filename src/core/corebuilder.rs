@@ -1,5 +1,6 @@
 use crate::{
     error::CoreError,
+    logger::Logger,
     warrior::{Instruction, Warrior},
 };
 
@@ -17,6 +18,7 @@ pub struct CoreBuilder {
     pub(super) write_distance: usize,
     pub(super) separation: Separation,
     pub(super) warriors: Vec<Warrior>,
+    pub(super) logger: Option<Box<dyn Logger>>,
 }
 
 impl Default for CoreBuilder {
@@ -32,6 +34,7 @@ impl Default for CoreBuilder {
             write_distance: 8000,
             separation: Separation::Random,
             warriors: Vec::new(),
+            logger: None,
         }
     }
 }
@@ -149,6 +152,12 @@ impl CoreBuilder {
         Ok(self)
     }
 
+    pub fn log_with(&mut self, logger: Box<dyn Logger>) -> &mut Self {
+        self.logger = Some(logger);
+
+        self
+    }
+
     /// Build the core, consuming the `CoreBuilder` and returning a [`Core`](../struct.Core.html) struct.
     pub fn build(&self) -> Result<Core, CoreError> {
         let CoreBuilder {
@@ -192,6 +201,7 @@ impl CoreBuilder {
             current_queue: 0,
             total_instructions: 0,
             living_warriors_count: warriors.len(),
+            logger: None,
         })
     }
 }

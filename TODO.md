@@ -23,4 +23,4 @@
 
 ### Logging
 
-- [ ] Improve DefaultLogger to collect ongoing stats or whatever.
+- [ ] Improve DebugLogger to collect ongoing stats or whatever.

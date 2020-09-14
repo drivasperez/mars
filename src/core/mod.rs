@@ -1,8 +1,8 @@
 mod corebuilder;
 pub use corebuilder::*;
 
-use crate::parser::instruction::Opcode;
 use crate::warrior::{Instruction, Warrior};
+use crate::{logger::Logger, parser::instruction::Opcode};
 use std::collections::VecDeque;
 
 enum ExecutionOutcome {
@@ -29,12 +29,15 @@ pub struct Core<'a> {
     current_queue: usize,
     total_instructions: usize,
     living_warriors_count: usize,
+    logger: Option<Box<dyn Logger>>,
 }
 
 impl Core<'_> {
     pub fn run(&mut self) {
         while let ExecutionOutcome::Continue = self.run_once() {
-            // Log new state if logger struct (to be written) being used
+            if let Some(ref logger) = self.logger {
+                logger.log(&self);
+            }
         }
     }
 
