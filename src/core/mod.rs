@@ -21,21 +21,20 @@ pub enum MatchOutcome<'a> {
     Draw(Vec<&'a Warrior>),
 }
 
+#[derive(Debug)]
 pub struct Core<'a> {
-    pub(crate) core: &'a CoreBuilder,
-    pub(crate) instructions: Vec<Instruction>,
-    pub(crate) task_queues: Vec<VecDeque<usize>>,
-    pub(crate) current_queue: usize,
-    pub(crate) total_instructions: usize,
-    pub(crate) living_warriors_count: usize,
+    core: &'a CoreBuilder,
+    instructions: Vec<Instruction>,
+    task_queues: Vec<VecDeque<usize>>,
+    current_queue: usize,
+    total_instructions: usize,
+    living_warriors_count: usize,
 }
 
 impl Core<'_> {
     pub fn run(&mut self) {
-        loop {
-            if let ExecutionOutcome::GameOver = self.run_once() {
-                break;
-            }
+        while let ExecutionOutcome::Continue = self.run_once() {
+            // Log new state if logger struct (to be written) being used
         }
     }
 
@@ -89,6 +88,6 @@ impl Core<'_> {
             return ExecutionOutcome::GameOver;
         };
 
-        todo!();
+        ExecutionOutcome::Continue
     }
 }
