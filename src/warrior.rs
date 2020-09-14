@@ -11,21 +11,27 @@ use std::fmt::{Display, Formatter};
 pub struct Instruction {
     pub(crate) opcode: Opcode,
     pub(crate) modifier: Modifier,
-    pub(crate) addr_a: (AddressMode, i32),
-    pub(crate) addr_b: (AddressMode, i32),
+    pub(crate) mode_a: AddressMode,
+    pub(crate) addr_a: i32,
+    pub(crate) mode_b: AddressMode,
+    pub(crate) addr_b: i32,
 }
 
 impl Instruction {
     pub fn new(
         opcode: Opcode,
         modifier: Modifier,
-        addr_a: (AddressMode, i32),
-        addr_b: (AddressMode, i32),
+        mode_a: AddressMode,
+        addr_a: i32,
+        mode_b: AddressMode,
+        addr_b: i32,
     ) -> Self {
         Self {
             opcode,
             modifier,
+            mode_a,
             addr_a,
+            mode_b,
             addr_b,
         }
     }
@@ -45,13 +51,17 @@ impl Instruction {
         } = instruction;
 
         let Address { mode, expr } = field_a;
-        let addr1 = (mode, expr.evaluate(labels, current_line as i32)?);
+        let mode_a = mode;
+        let addr_a = expr.evaluate(labels, current_line as i32)?;
         let Address { mode, expr } = field_b.unwrap_or_default();
-        let addr2 = (mode, expr.evaluate(labels, current_line as i32)?);
+        let mode_b = mode;
+        let addr_b = expr.evaluate(labels, current_line as i32)?;
 
         let Operation { opcode, modifier } = operation;
 
-        Ok(Instruction::new(opcode, modifier, addr1, addr2))
+        Ok(Instruction::new(
+            opcode, modifier, mode_a, addr_a, mode_b, addr_b,
+        ))
     }
 }
 
@@ -60,7 +70,7 @@ impl Display for Instruction {
         write!(
             f,
             "{}.{} {}{}, {}{}",
-            self.opcode, self.modifier, self.addr_a.0, self.addr_a.1, self.addr_b.0, self.addr_b.1
+            self.opcode, self.modifier, self.mode_a, self.addr_a, self.mode_b, self.addr_b
         )
     }
 }
@@ -70,8 +80,10 @@ impl Default for Instruction {
         Self {
             opcode: Opcode::Dat,
             modifier: Modifier::F,
-            addr_a: (AddressMode::Direct, 0),
-            addr_b: (AddressMode::Direct, 0),
+            mode_a: AddressMode::Direct,
+            addr_a: 0,
+            mode_b: AddressMode::Direct,
+            addr_b: 0,
         }
     }
 }
@@ -299,8 +311,10 @@ mod test {
         let inst = Instruction {
             opcode: Opcode::Mov,
             modifier: Modifier::BA,
-            addr_a: (AddressMode::Direct, 8),
-            addr_b: (AddressMode::AFieldIndirect, 2),
+            mode_a: AddressMode::Direct,
+            addr_a: 8,
+            mode_b: AddressMode::AFieldIndirect,
+            addr_b: 2,
         };
 
         assert_eq!(format!("{}", inst), String::from("MOV.BA $8, *2"));
