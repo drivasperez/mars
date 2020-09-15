@@ -83,6 +83,7 @@ impl Core<'_> {
             read_ptr_a = self.fold_read(addr_a as usize);
             write_ptr_a = self.fold_write(addr_a as usize);
 
+            // NOTE TO SELF: the spec mars doesn't have post-decrement or pre-increment, need to factor that in.
             match mode_a {
                 AddressMode::Immediate => unreachable!(),
                 AddressMode::Direct => {}
