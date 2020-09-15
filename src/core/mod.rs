@@ -33,6 +33,28 @@ pub struct Core<'a> {
 }
 
 impl Core<'_> {
+    /// Utility for calculating wrapped reads based on core size and read distance.
+    fn fold_read(&self, ptr: usize) -> usize {
+        let limit = self.core.read_distance;
+        let mut result = ptr % limit;
+        if result > (limit / 2) {
+            result += self.core.core_size - limit;
+        }
+
+        result
+    }
+
+    /// Utility for calculating wrapped writes based on core size and write distance.
+    fn fold_write(&self, ptr: usize) -> usize {
+        let limit = self.core.write_distance;
+        let mut result = ptr % limit;
+        if result > (limit / 2) {
+            result += self.core.core_size - limit;
+        }
+
+        result
+    }
+
     pub fn run(&mut self) {
         while let ExecutionOutcome::Continue = self.run_once() {
             if let Some(ref logger) = self.logger {

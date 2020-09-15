@@ -7,6 +7,10 @@
 - [ ] Multiple Org pseudo-instructions should be accepted, and the last one used.
 - [ ] END pseudo-instruction should equivalent to an ORG instruction.
 
+### Core
+
+- [ ] What is the main number type? i32, u32, isize, usize?
+
 ## Features
 
 ### Parser
