@@ -1,8 +1,11 @@
 mod corebuilder;
 pub use corebuilder::*;
 
-use crate::warrior::{Instruction, Warrior};
 use crate::{logger::Logger, parser::instruction::Opcode};
+use crate::{
+    parser::instruction::AddressMode,
+    warrior::{Instruction, Warrior},
+};
 use std::collections::VecDeque;
 
 enum ExecutionOutcome {
@@ -53,6 +56,44 @@ impl Core<'_> {
         }
 
         result
+    }
+
+    fn evaluate_instructions(
+        &mut self,
+        mode_a: AddressMode,
+        addr_a: i32,
+        mode_b: AddressMode,
+        addr_b: i32,
+    ) {
+        // This pointer nonsense can probably be simplified after porting from the spec
+        let instr_ref_a: usize;
+        let instr_ref_b: usize;
+
+        let read_ptr_a: usize;
+        let write_ptr_a: usize;
+        let read_ptr_b: usize;
+        let write_ptr_b: usize;
+
+        let post_increment_addr: usize;
+
+        if let AddressMode::Immediate = mode_a {
+            read_ptr_a = 0;
+            write_ptr_a = 0;
+        } else {
+            read_ptr_a = self.fold_read(addr_a as usize);
+            write_ptr_a = self.fold_write(addr_a as usize);
+
+            match mode_a {
+                AddressMode::Immediate => unreachable!(),
+                AddressMode::Direct => {}
+                AddressMode::AFieldIndirect => {}
+                AddressMode::BFieldIndirect => {}
+                AddressMode::AFieldPredecrementIndirect => {}
+                AddressMode::BFieldPredecrementIndirect => {}
+                AddressMode::AFieldPostincrementIndirect => {}
+                AddressMode::BFieldPostincrementIndirect => {}
+            };
+        };
     }
 
     pub fn run(&mut self) {

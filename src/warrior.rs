@@ -102,27 +102,27 @@ pub struct Metadata {
 impl Metadata {
     /// The warrior's name.
     pub fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(|s| s.as_str())
+        self.name.as_deref()
     }
 
     /// The name of the warrior's author.
     pub fn author(&self) -> Option<&str> {
-        self.author.as_ref().map(|s| s.as_str())
+        self.author.as_deref()
     }
 
     /// The publication date of the warrior.
     pub fn date(&self) -> Option<&str> {
-        self.date.as_ref().map(|s| s.as_str())
+        self.date.as_deref()
     }
 
     /// A description of the warrior's strategy.
     pub fn strategy(&self) -> Option<&str> {
-        self.strategy.as_ref().map(|s| s.as_str())
+        self.strategy.as_deref()
     }
 
     /// The warrior's version. This does not have to use any particular schema.
     pub fn version(&self) -> Option<&str> {
-        self.version.as_ref().map(|s| s.as_str())
+        self.version.as_deref()
     }
 }
 
