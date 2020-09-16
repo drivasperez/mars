@@ -12,9 +12,9 @@ pub struct Instruction {
     pub(crate) opcode: Opcode,
     pub(crate) modifier: Modifier,
     pub(crate) mode_a: AddressMode,
-    pub(crate) addr_a: i32,
+    pub(crate) addr_a: i64,
     pub(crate) mode_b: AddressMode,
-    pub(crate) addr_b: i32,
+    pub(crate) addr_b: i64,
 }
 
 impl Instruction {
@@ -22,9 +22,9 @@ impl Instruction {
         opcode: Opcode,
         modifier: Modifier,
         mode_a: AddressMode,
-        addr_a: i32,
+        addr_a: i64,
         mode_b: AddressMode,
-        addr_b: i32,
+        addr_b: i64,
     ) -> Self {
         Self {
             opcode,
@@ -40,7 +40,7 @@ impl Instruction {
 impl Instruction {
     pub(crate) fn from_instruction(
         instruction: RawInstruction,
-        labels: &HashMap<&str, i32>,
+        labels: &HashMap<&str, i64>,
         current_line: usize,
     ) -> Result<Self, EvaluateError> {
         let RawInstruction {
@@ -52,10 +52,10 @@ impl Instruction {
 
         let Address { mode, expr } = field_a;
         let mode_a = mode;
-        let addr_a = expr.evaluate(labels, current_line as i32)?;
+        let addr_a = expr.evaluate(labels, current_line)?;
         let Address { mode, expr } = field_b.unwrap_or_default();
         let mode_b = mode;
-        let addr_b = expr.evaluate(labels, current_line as i32)?;
+        let addr_b = expr.evaluate(labels, current_line)?;
 
         let Operation { opcode, modifier } = operation;
 
@@ -271,7 +271,7 @@ fn lines_by_type<'a>(
 
 fn get_label_definitions<'a>(
     instructions: &[RawInstruction<'a>],
-) -> Result<HashMap<&'a str, i32>, EvaluateError> {
+) -> Result<HashMap<&'a str, i64>, EvaluateError> {
     let mut definitions = HashMap::new();
 
     for (index, instruction) in instructions.iter().enumerate() {
@@ -281,7 +281,7 @@ fn get_label_definitions<'a>(
                     *label,
                 )));
             } else {
-                definitions.insert(*label, index as i32);
+                definitions.insert(*label, index as i64);
             }
         }
     }
@@ -291,7 +291,7 @@ fn get_label_definitions<'a>(
 
 fn get_starting_line(
     orgs: &[NumericExpr],
-    labels: &HashMap<&str, i32>,
+    labels: &HashMap<&str, i64>,
 ) -> Result<usize, EvaluateError> {
     let starting_line = match orgs.len() {
         0 => 1,

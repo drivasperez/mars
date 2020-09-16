@@ -61,9 +61,9 @@ impl Core<'_> {
     fn evaluate_instructions(
         &mut self,
         mode_a: AddressMode,
-        addr_a: i32,
+        addr_a: i64,
         mode_b: AddressMode,
-        addr_b: i32,
+        addr_b: i64,
     ) {
         // This pointer nonsense can probably be simplified after porting from the spec
         let instr_ref_a: usize;
@@ -74,7 +74,7 @@ impl Core<'_> {
         let read_ptr_b: usize;
         let write_ptr_b: usize;
 
-        let post_increment_addr: usize;
+        let post_increment_addr: Option<usize> = None;
 
         if let AddressMode::Immediate = mode_a {
             read_ptr_a = 0;
@@ -83,7 +83,8 @@ impl Core<'_> {
             read_ptr_a = self.fold_read(addr_a as usize);
             write_ptr_a = self.fold_write(addr_a as usize);
 
-            // NOTE TO SELF: the spec mars doesn't have post-decrement or pre-increment, need to factor that in.
+            // NOTE TO SELF: the spec mars doesn't have post-decrement or pre-increment
+            //or a-field indirect, need to factor that in.
             match mode_a {
                 AddressMode::Immediate => unreachable!(),
                 AddressMode::Direct => {}

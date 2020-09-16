@@ -15,7 +15,7 @@ use std::fmt::{Debug, Display};
 
 #[derive(Eq, PartialEq)]
 pub(crate) enum ExprValue<'a> {
-    Number(i32),
+    Number(i64),
     Label(&'a str),
 }
 
@@ -81,12 +81,12 @@ impl Display for NumericExpr<'_> {
 impl NumericExpr<'_> {
     pub(crate) fn evaluate(
         &self,
-        labels: &HashMap<&str, i32>,
-        current_line: i32,
-    ) -> Result<i32, EvaluateError> {
+        labels: &HashMap<&str, i64>,
+        current_line: usize,
+    ) -> Result<i64, EvaluateError> {
         let mut is_label = false;
 
-        let res: i32 = match self {
+        let res: i64 = match self {
             Self::Value(val) => match val {
                 ExprValue::Number(n) => *n,
                 ExprValue::Label(l) => {
@@ -116,7 +116,11 @@ impl NumericExpr<'_> {
             }
         };
 
-        Ok(if !is_label { res } else { res - current_line })
+        Ok(if !is_label {
+            res
+        } else {
+            res - current_line as i64
+        })
     }
 }
 
@@ -128,7 +132,7 @@ pub(crate) enum Operation {
     Modulo,
 }
 
-fn number(i: &str) -> IResult<&str, i32> {
+fn number(i: &str) -> IResult<&str, i64> {
     map(recognize(pair(opt(one_of("+-")), digit1)), |num: &str| {
         num.parse().unwrap()
     })(i)
@@ -266,7 +270,7 @@ mod test {
 
     #[test]
     fn evaluate_expression() {
-        let labels: HashMap<&str, i32> = vec![("hello", 33), ("world", -2)].into_iter().collect();
+        let labels: HashMap<&str, i64> = vec![("hello", 33), ("world", -2)].into_iter().collect();
 
         assert_eq!(expr("3 + 5").unwrap().1.evaluate(&labels, 0).unwrap(), 8);
         assert_eq!(expr("3 + -5").unwrap().1.evaluate(&labels, 0).unwrap(), -2);
@@ -287,7 +291,7 @@ mod test {
 
     #[test]
     fn evaluate_relative_expression() {
-        let labels: HashMap<&str, i32> = vec![("hello", 33), ("world", -2)].into_iter().collect();
+        let labels: HashMap<&str, i64> = vec![("hello", 33), ("world", -2)].into_iter().collect();
 
         assert_eq!(expr("3 + 5").unwrap().1.evaluate(&labels, 5).unwrap(), 8);
         assert_eq!(
