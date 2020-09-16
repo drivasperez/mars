@@ -1,7 +1,7 @@
 mod corebuilder;
 pub use corebuilder::*;
 
-use crate::{logger::Logger, parser::instruction::Opcode};
+use crate::{logger::Logger, parser::instruction::Modifier, parser::instruction::Opcode};
 use crate::{
     parser::instruction::AddressMode,
     warrior::{Instruction, Warrior},
@@ -11,6 +11,42 @@ use std::collections::VecDeque;
 enum ExecutionOutcome {
     Continue,
     GameOver,
+}
+
+/// Like a warrior instruction, but its addresses are positive 32-bit integers
+#[derive(Debug, Clone)]
+struct CoreInstruction {
+    opcode: Opcode,
+    modifier: Modifier,
+    mode_a: AddressMode,
+    addr_a: u32,
+    mode_b: AddressMode,
+    addr_b: u32,
+}
+
+fn keep_in_bounds(input: i64, offset: u32, m: u32) -> u32 {
+    let mut i: i64 = input;
+    let m = i64::from(m);
+    let offset = i64::from(m);
+
+    while i + offset < 0 {
+        i += m as i64;
+    }
+
+    ((i + offset) % m) as u32 // Safe coercion, can't under/overflow because clamped between 0 and m.
+}
+
+impl CoreInstruction {
+    fn from_instruction(instruction: Instruction, current_offset: u32, core_size: u32) -> Self {
+        Self {
+            opcode: instruction.opcode,
+            modifier: instruction.modifier,
+            mode_a: instruction.mode_a,
+            addr_a: keep_in_bounds(instruction.addr_a, current_offset, core_size),
+            mode_b: instruction.mode_b,
+            addr_b: keep_in_bounds(instruction.addr_b, current_offset, core_size),
+        }
+    }
 }
 
 /// The outcome of a single match.
@@ -27,7 +63,7 @@ pub enum MatchOutcome<'a> {
 #[derive(Debug)]
 pub struct Core<'a> {
     core: &'a CoreBuilder,
-    instructions: Vec<Instruction>,
+    instructions: Vec<CoreInstruction>,
     task_queues: Vec<VecDeque<usize>>,
     current_queue: usize,
     total_instructions: usize,
