@@ -3,8 +3,9 @@ use crate::{
     logger::Logger,
     warrior::{Instruction, Warrior},
 };
+use std::convert::TryFrom;
 
-use super::Core;
+use super::{Core, CoreInstruction};
 use std::collections::VecDeque;
 #[derive(Debug)]
 pub struct CoreBuilder {
@@ -167,9 +168,17 @@ impl CoreBuilder {
             separation,
             warriors,
             maximum_number_of_tasks,
+            core_size,
             ..
         } = self;
-        let mut core_instructions = vec![initial_instruction.clone().extract(); self.core_size];
+        let mut core_instructions = vec![
+            CoreInstruction::from_instruction(
+                initial_instruction.clone().extract(),
+                0,
+                *core_size
+            );
+            *core_size
+        ];
 
         let mut offset = 0_usize;
         let separation = separation.clone().extract();
@@ -178,7 +187,11 @@ impl CoreBuilder {
         for (i, warrior) in warriors.iter().enumerate() {
             initial_offsets[i] += offset;
             for instruction in &warrior.instructions {
-                core_instructions[offset] = instruction.clone();
+                core_instructions[offset] = CoreInstruction::from_instruction(
+                    instruction.clone(),
+                    u32::try_from(offset).unwrap(),
+                    core_size,
+                );
                 offset += 1;
             }
 
