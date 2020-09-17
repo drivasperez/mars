@@ -1,5 +1,6 @@
 mod corebuilder;
 pub use corebuilder::*;
+use std::convert::TryFrom;
 
 use crate::{logger::Logger, parser::instruction::Modifier, parser::instruction::Opcode};
 use crate::{
@@ -19,25 +20,25 @@ struct CoreInstruction {
     opcode: Opcode,
     modifier: Modifier,
     mode_a: AddressMode,
-    addr_a: u32,
+    addr_a: usize,
     mode_b: AddressMode,
-    addr_b: u32,
+    addr_b: usize,
 }
 
-fn keep_in_bounds(input: i64, offset: u32, m: u32) -> u32 {
+fn keep_in_bounds(input: i64, offset: usize, m: usize) -> usize {
     let mut i: i64 = input;
-    let m = i64::from(m);
+    let m = i64::try_from(m).unwrap();
     let offset = i64::from(m);
 
     while i + offset < 0 {
         i += m as i64;
     }
 
-    ((i + offset) % m) as u32 // Safe coercion, can't under/overflow because clamped between 0 and m.
+    ((i + offset) % m) as usize // Safe coercion, can't under/overflow because clamped between 0 and m.
 }
 
 impl CoreInstruction {
-    fn from_instruction(instruction: Instruction, current_offset: u32, core_size: u32) -> Self {
+    fn from_instruction(instruction: Instruction, current_offset: usize, core_size: usize) -> Self {
         Self {
             opcode: instruction.opcode,
             modifier: instruction.modifier,

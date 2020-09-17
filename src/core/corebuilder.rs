@@ -187,11 +187,8 @@ impl CoreBuilder {
         for (i, warrior) in warriors.iter().enumerate() {
             initial_offsets[i] += offset;
             for instruction in &warrior.instructions {
-                core_instructions[offset] = CoreInstruction::from_instruction(
-                    instruction.clone(),
-                    u32::try_from(offset).unwrap(),
-                    core_size,
-                );
+                core_instructions[offset] =
+                    CoreInstruction::from_instruction(instruction.clone(), offset, *core_size);
                 offset += 1;
             }
 
