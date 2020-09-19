@@ -28,7 +28,7 @@ struct CoreInstruction {
 fn keep_in_bounds(input: i64, offset: usize, m: usize) -> usize {
     let mut i: i64 = input;
     let m = i64::try_from(m).unwrap();
-    let offset = i64::from(m);
+    let offset = i64::try_from(offset).unwrap();
 
     while i + offset < 0 {
         i += m as i64;
@@ -95,46 +95,6 @@ impl Core<'_> {
         result
     }
 
-    fn evaluate_instructions(
-        &mut self,
-        mode_a: AddressMode,
-        addr_a: i64,
-        mode_b: AddressMode,
-        addr_b: i64,
-    ) {
-        // This pointer nonsense can probably be simplified after porting from the spec
-        let instr_ref_a: usize;
-        let instr_ref_b: usize;
-
-        let read_ptr_a: usize;
-        let write_ptr_a: usize;
-        let read_ptr_b: usize;
-        let write_ptr_b: usize;
-
-        let post_increment_addr: Option<usize> = None;
-
-        if let AddressMode::Immediate = mode_a {
-            read_ptr_a = 0;
-            write_ptr_a = 0;
-        } else {
-            read_ptr_a = self.fold_read(addr_a as usize);
-            write_ptr_a = self.fold_write(addr_a as usize);
-
-            // NOTE TO SELF: the spec mars doesn't have post-decrement or pre-increment
-            //or a-field indirect, need to factor that in.
-            match mode_a {
-                AddressMode::Immediate => unreachable!(),
-                AddressMode::Direct => {}
-                AddressMode::AFieldIndirect => {}
-                AddressMode::BFieldIndirect => {}
-                AddressMode::AFieldPredecrementIndirect => {}
-                AddressMode::BFieldPredecrementIndirect => {}
-                AddressMode::AFieldPostincrementIndirect => {}
-                AddressMode::BFieldPostincrementIndirect => {}
-            };
-        };
-    }
-
     pub fn run(&mut self) {
         while let ExecutionOutcome::Continue = self.run_once() {
             if let Some(ref logger) = self.logger {
@@ -143,8 +103,17 @@ impl Core<'_> {
         }
     }
 
+    fn evaluate_address(&self, mode: AddressMode, addr: usize) -> usize {
+        todo!();
+    }
+
     fn run_once(&mut self) -> ExecutionOutcome {
+        let mut instruction_register: CoreInstruction;
+        let mut source_register: CoreInstruction;
+        let mut destination_register: CoreInstruction;
+
         let current_queue = &mut self.task_queues[self.current_queue];
+        // Get the task, killing the warrior if it has no tasks.
         let task = match current_queue.pop_front() {
             Some(v) => v,
             None => {
@@ -157,9 +126,10 @@ impl Core<'_> {
             }
         };
 
-        let task = &self.instructions[task];
+        // Copy the instruction the task
+        instruction_register = self.instructions[task].clone();
 
-        let next_task: Option<usize> = match task.opcode {
+        let next_task: Option<usize> = match instruction.opcode {
             Opcode::Dat => None,
             Opcode::Mov => todo!(),
             Opcode::Add => todo!(),
@@ -179,6 +149,7 @@ impl Core<'_> {
         };
 
         if let Some(x) = next_task {
+            let current_queue = &mut self.task_queues[self.current_queue];
             current_queue.push_back(x);
         };
 

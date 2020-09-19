@@ -134,7 +134,6 @@ impl CoreBuilder {
     }
 
     pub fn load_warriors(&mut self, warriors: &[Warrior]) -> Result<&mut Self, CoreError> {
-        // TODO: Implement this properly, checking things like max length.
         for warrior in warriors {
             if warrior.len() > self.instruction_limit {
                 return Err(CoreError::WarriorTooLong(
