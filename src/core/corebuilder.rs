@@ -3,7 +3,6 @@ use crate::{
     logger::Logger,
     warrior::{Instruction, Warrior},
 };
-use std::convert::TryFrom;
 
 use super::{Core, CoreInstruction};
 use std::collections::VecDeque;

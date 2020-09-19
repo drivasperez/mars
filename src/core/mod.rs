@@ -178,7 +178,7 @@ impl Core<'_> {
             Opcode::Mov => {
                 match instruction_register.modifier {
                     Modifier::I => {
-                        self.instructions[destination_ptr] = source_register.clone();
+                        self.instructions[destination_ptr] = source_register;
                     }
                     Modifier::A => {
                         self.instructions[destination_ptr].addr_a = source_register.addr_a;
@@ -574,7 +574,7 @@ impl Core<'_> {
                     );
                     current_queue.push_back(
                         if self.instructions[destination_ptr].addr_a != 0
-                            && self.instructions[destination_ptr].addr_a != 0
+                            && self.instructions[destination_ptr].addr_b != 0
                         {
                             source_ptr
                         } else {
@@ -601,7 +601,7 @@ impl Core<'_> {
                         source_register.addr_a == destination_register.addr_a
                             && source_register.addr_b == destination_register.addr_b
                             && source_register.mode_a == destination_register.mode_a
-                            && source_register.mode_b == source_register.mode_b
+                            && source_register.mode_b == destination_register.mode_b
                     }
                 };
 
@@ -644,7 +644,7 @@ impl Core<'_> {
                         source_register.addr_a != destination_register.addr_a
                             || source_register.addr_b != destination_register.addr_b
                             || source_register.mode_a != destination_register.mode_a
-                            || source_register.mode_b != source_register.mode_b
+                            || source_register.mode_b != destination_register.mode_b
                     }
                 };
 
@@ -672,3 +672,6 @@ impl Core<'_> {
         ExecutionOutcome::Continue
     }
 }
+
+#[cfg(test)]
+mod test;
