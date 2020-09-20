@@ -113,6 +113,14 @@ impl Core<'_> {
         }
     }
 
+    fn decrement_address(ptr: usize, limit: usize) -> usize {
+        if ptr == 0 {
+            limit - 1
+        } else {
+            ptr - 1
+        }
+    }
+
     fn evaluate_operand(&mut self, mode: AddressMode, addr: usize, task: usize) -> usize {
         println!("Evaluating: {} {} at task {}", mode, addr, task);
         match mode {
@@ -132,26 +140,48 @@ impl Core<'_> {
             }
             AddressMode::AFieldPredecrementIndirect => {
                 let next = Core::fold(addr + task, self.core.read_distance, self.core.core_size);
-                self.instructions[next].addr_a -= 1;
+                self.instructions[next].addr_a = Core::fold(
+                    Core::decrement_address(
+                        self.instructions[next].addr_a,
+                        self.core.write_distance,
+                    ),
+                    self.core.read_distance,
+                    self.core.core_size,
+                );
                 let addr = self.instructions[next].addr_a;
                 Core::fold(next + addr, self.core.read_distance, self.core.core_size)
             }
             AddressMode::BFieldPredecrementIndirect => {
                 let next = Core::fold(addr + task, self.core.read_distance, self.core.core_size);
-                self.instructions[next].addr_b -= 1;
+                self.instructions[next].addr_b = Core::fold(
+                    Core::decrement_address(
+                        self.instructions[next].addr_b,
+                        self.core.write_distance,
+                    ),
+                    self.core.write_distance,
+                    self.core.core_size,
+                );
                 let addr = self.instructions[next].addr_b;
                 Core::fold(next + addr, self.core.read_distance, self.core.core_size)
             }
             AddressMode::AFieldPostincrementIndirect => {
                 let next = Core::fold(addr + task, self.core.read_distance, self.core.core_size);
                 let addr = self.instructions[next].addr_a;
-                self.instructions[next].addr_a += 1;
+                self.instructions[next].addr_a = Core::fold(
+                    self.instructions[next].addr_a + 1,
+                    self.core.write_distance,
+                    self.core.core_size,
+                );
                 Core::fold(next + addr, self.core.read_distance, self.core.core_size)
             }
             AddressMode::BFieldPostincrementIndirect => {
                 let next = Core::fold(addr + task, self.core.read_distance, self.core.core_size);
                 let addr = self.instructions[next].addr_b;
-                self.instructions[next].addr_b += 1;
+                self.instructions[next].addr_b = Core::fold(
+                    self.instructions[next].addr_b + 1,
+                    self.core.write_distance,
+                    self.core.core_size,
+                );
                 Core::fold(next + addr, self.core.read_distance, self.core.core_size)
             }
         }
@@ -205,7 +235,7 @@ impl Core<'_> {
 
         println!("Instruction: {}", instruction_register);
         println!(
-            "{}: {}, {}: {}",
+            "Source {}: {}, Destination {}: {}",
             source_ptr, source_register, destination_ptr, destination_register
         );
 

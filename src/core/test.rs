@@ -177,3 +177,59 @@ fn build_and_run_dwarf() {
         ]
     );
 }
+
+#[test]
+fn build_and_run_stone() {
+    let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
+    let warriors = vec![stone.clone()];
+
+    let mut cb = CoreBuilder::new();
+    let mut core = cb
+        .core_size(10)
+        .read_distance(10)
+        .write_distance(10)
+        .separation(Separation::Fixed(10))
+        .load_warriors(&warriors)
+        .unwrap()
+        .build()
+        .unwrap();
+
+    assert_eq!(
+        core.instructions
+            .iter()
+            .map(|x| format!("{}", x))
+            .collect::<Vec<String>>(),
+        vec![
+            "MOV.I <2, $3",
+            "ADD.F $3, $9",
+            "JMP.B $8, $0",
+            "DAT.F #0, $0",
+            "DAT.F #6, #4",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0"
+        ]
+    );
+
+    core.run_once();
+    assert_eq!(
+        core.instructions
+            .iter()
+            .map(|x| format!("{}", x))
+            .collect::<Vec<String>>(),
+        vec![
+            "MOV.I <2, $3",
+            "ADD.F $3, $9",
+            "JMP.B $8, $0",
+            "DAT.F #0, $0",
+            "DAT.F #6, #4",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0"
+        ]
+    );
+}
