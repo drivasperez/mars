@@ -7,7 +7,7 @@ use crate::parser::{metadata::MetadataValue, numeric_expr::NumericExpr, replace_
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Instruction {
     pub(crate) opcode: Opcode,
     pub(crate) modifier: Modifier,
@@ -90,7 +90,7 @@ impl Default for Instruction {
 
 /// Metadata about a warrior, which can include its name, author, creation date, version and a summary of
 /// its strategy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Metadata {
     name: Option<String>,
     author: Option<String>,
@@ -187,7 +187,7 @@ impl Metadata {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Warrior {
     pub metadata: Metadata,
     pub(crate) instructions: Vec<Instruction>,

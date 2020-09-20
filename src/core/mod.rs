@@ -1,6 +1,8 @@
 mod corebuilder;
 pub use corebuilder::*;
+use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
 
 use crate::{logger::Logger, parser::instruction::Modifier, parser::instruction::Opcode};
 use crate::{
@@ -15,7 +17,7 @@ enum ExecutionOutcome {
 }
 
 /// Like a warrior instruction, but its addresses are positive 32-bit integers
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct CoreInstruction {
     opcode: Opcode,
     modifier: Modifier,
@@ -25,27 +27,36 @@ struct CoreInstruction {
     addr_b: usize,
 }
 
-fn keep_in_bounds(input: i64, offset: usize, m: usize) -> usize {
+impl Display for CoreInstruction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}.{} {}{}, {}{}",
+            self.opcode, self.modifier, self.mode_a, self.addr_a, self.mode_b, self.addr_b
+        )
+    }
+}
+
+fn keep_in_bounds(input: i64, m: usize) -> usize {
     let mut i: i64 = input;
     let m = i64::try_from(m).unwrap();
-    let offset = i64::try_from(offset).unwrap();
 
-    while i + offset < 0 {
+    while i < 0 {
         i += m as i64;
     }
 
-    ((i + offset) % m) as usize // Safe coercion, can't under/overflow because clamped between 0 and m.
+    (i % m) as usize // Safe coercion, can't under/overflow because clamped between 0 and m.
 }
 
 impl CoreInstruction {
-    fn from_instruction(instruction: Instruction, current_offset: usize, core_size: usize) -> Self {
+    fn from_instruction(instruction: Instruction, core_size: usize) -> Self {
         Self {
             opcode: instruction.opcode,
             modifier: instruction.modifier,
             mode_a: instruction.mode_a,
-            addr_a: keep_in_bounds(instruction.addr_a, current_offset, core_size),
+            addr_a: keep_in_bounds(instruction.addr_a, core_size),
             mode_b: instruction.mode_b,
-            addr_b: keep_in_bounds(instruction.addr_b, current_offset, core_size),
+            addr_b: keep_in_bounds(instruction.addr_b, core_size),
         }
     }
 }
@@ -56,6 +67,7 @@ impl CoreInstruction {
 /// the match is counted as a win for that warrior. If the game's instruction counter
 /// reaches its maximum value before a winner can be declared,
 /// the match is a draw between all warriors that are still active.
+#[derive(Debug, PartialEq, Eq)]
 pub enum MatchOutcome<'a> {
     Win(&'a Warrior),
     Draw(Vec<&'a Warrior>),
@@ -68,7 +80,7 @@ pub struct Core<'a> {
     task_queues: Vec<VecDeque<usize>>,
     current_queue: usize,
     total_instructions: usize,
-    living_warriors_count: usize,
+    living_warriors: HashSet<usize>,
     logger: Option<Box<dyn Logger>>,
 }
 
@@ -83,17 +95,28 @@ impl Core<'_> {
         result
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> MatchOutcome {
         while let ExecutionOutcome::Continue = self.run_once() {
             if let Some(ref logger) = self.logger {
                 logger.log(&self);
             }
         }
+
+        let warriors: Vec<&Warrior> = self
+            .living_warriors
+            .iter()
+            .map(|&x| &self.core.warriors[x])
+            .collect();
+        match warriors.len() {
+            1 => MatchOutcome::Win(warriors[0]),
+            _ => MatchOutcome::Draw(warriors),
+        }
     }
 
     fn evaluate_operand(&mut self, mode: AddressMode, addr: usize, task: usize) -> usize {
+        println!("Evaluating: {} {} at task {}", mode, addr, task);
         match mode {
-            AddressMode::Immediate => 0,
+            AddressMode::Immediate => task,
             AddressMode::Direct => {
                 Core::fold(addr + task, self.core.read_distance, self.core.core_size)
             }
@@ -139,13 +162,20 @@ impl Core<'_> {
         let source_register: CoreInstruction;
         let destination_register: CoreInstruction;
 
+        let read_distance = self.core.read_distance;
+        let write_distance = self.core.write_distance;
+        let core_size = self.core.core_size;
+        let fold_read = |x| Core::fold(x, read_distance, core_size);
+        let fold_write = |x| Core::fold(x, write_distance, core_size);
+
         let current_queue = &mut self.task_queues[self.current_queue];
+
         // Get the task, killing the warrior if it has no tasks.
         let task = match current_queue.pop_front() {
             Some(v) => v,
             None => {
-                self.living_warriors_count -= 1;
-                return if self.living_warriors_count == 0 {
+                self.living_warriors.remove(&self.current_queue);
+                return if self.living_warriors.len() == 0 {
                     ExecutionOutcome::GameOver
                 } else {
                     ExecutionOutcome::Continue
@@ -154,7 +184,7 @@ impl Core<'_> {
         };
 
         // Copy the instruction pointed to by the task to the IR.
-        instruction_register = self.instructions[task].clone();
+        instruction_register = self.instructions[fold_read(task)].clone();
 
         // Evaluate the IR's A operand and put the resolved instruction in the source register.
         let source_ptr = self.evaluate_operand(
@@ -170,7 +200,14 @@ impl Core<'_> {
             instruction_register.addr_b,
             task,
         );
+
         destination_register = self.instructions[destination_ptr].clone();
+
+        println!("Instruction: {}", instruction_register);
+        println!(
+            "{}: {}, {}: {}",
+            source_ptr, source_register, destination_ptr, destination_register
+        );
 
         let current_queue = &mut self.task_queues[self.current_queue];
         match instruction_register.opcode {
@@ -206,55 +243,39 @@ impl Core<'_> {
             Opcode::Add => {
                 match instruction_register.modifier {
                     Modifier::A => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a + source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::B => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b + source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::AB => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b + source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::BA => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a + source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::F | Modifier::I => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a + source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b + source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::X => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b + source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a + source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                 }
@@ -263,55 +284,39 @@ impl Core<'_> {
             Opcode::Sub => {
                 match instruction_register.modifier {
                     Modifier::A => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a - source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::B => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b - source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::AB => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b - source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::BA => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a - source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::F | Modifier::I => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a - source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b - source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::X => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b - source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a - source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                 }
@@ -320,55 +325,39 @@ impl Core<'_> {
             Opcode::Mul => {
                 match instruction_register.modifier {
                     Modifier::A => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a * source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::B => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b * source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::AB => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b * source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::BA => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a * source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::F | Modifier::I => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a * source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b * source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::X => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b * source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a * source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                 }
@@ -377,55 +366,39 @@ impl Core<'_> {
             Opcode::Div => {
                 match instruction_register.modifier {
                     Modifier::A => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a / source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::B => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b / source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::AB => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b / source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::BA => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a / source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::F | Modifier::I => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a / source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b / source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::X => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b / source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a / source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                 }
@@ -434,55 +407,39 @@ impl Core<'_> {
             Opcode::Mod => {
                 match instruction_register.modifier {
                     Modifier::A => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a % source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::B => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b % source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::AB => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b % source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::BA => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a % source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::F | Modifier::I => {
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a % source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b % source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                     Modifier::X => {
-                        self.instructions[destination_ptr].addr_b = Core::fold(
+                        self.instructions[destination_ptr].addr_b = fold_write(
                             self.instructions[destination_ptr].addr_b % source_register.addr_a,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
-                        self.instructions[destination_ptr].addr_a = Core::fold(
+                        self.instructions[destination_ptr].addr_a = fold_write(
                             self.instructions[destination_ptr].addr_a % source_register.addr_b,
-                            self.core.write_distance,
-                            self.core.core_size,
                         );
                     }
                 }
@@ -538,11 +495,8 @@ impl Core<'_> {
 
             Opcode::Djn => match instruction_register.modifier {
                 Modifier::A | Modifier::BA => {
-                    self.instructions[destination_ptr].addr_a = Core::fold(
-                        self.instructions[destination_ptr].addr_a - 1,
-                        self.core.write_distance,
-                        self.core.core_size,
-                    );
+                    self.instructions[destination_ptr].addr_a =
+                        fold_write(self.instructions[destination_ptr].addr_a - 1);
                     current_queue.push_back(if self.instructions[destination_ptr].addr_a != 0 {
                         source_ptr
                     } else {
@@ -550,11 +504,8 @@ impl Core<'_> {
                     })
                 }
                 Modifier::B | Modifier::AB => {
-                    self.instructions[destination_ptr].addr_b = Core::fold(
-                        self.instructions[destination_ptr].addr_b - 1,
-                        self.core.write_distance,
-                        self.core.core_size,
-                    );
+                    self.instructions[destination_ptr].addr_b =
+                        fold_write(self.instructions[destination_ptr].addr_b - 1);
                     current_queue.push_back(if self.instructions[destination_ptr].addr_b != 0 {
                         source_ptr
                     } else {
@@ -562,16 +513,10 @@ impl Core<'_> {
                     })
                 }
                 _ => {
-                    self.instructions[destination_ptr].addr_a = Core::fold(
-                        self.instructions[destination_ptr].addr_a - 1,
-                        self.core.write_distance,
-                        self.core.core_size,
-                    );
-                    self.instructions[destination_ptr].addr_b = Core::fold(
-                        self.instructions[destination_ptr].addr_b - 1,
-                        self.core.write_distance,
-                        self.core.core_size,
-                    );
+                    self.instructions[destination_ptr].addr_a =
+                        fold_write(self.instructions[destination_ptr].addr_a - 1);
+                    self.instructions[destination_ptr].addr_b =
+                        fold_write(self.instructions[destination_ptr].addr_b - 1);
                     current_queue.push_back(
                         if self.instructions[destination_ptr].addr_a != 0
                             && self.instructions[destination_ptr].addr_b != 0
@@ -597,12 +542,7 @@ impl Core<'_> {
                         source_register.addr_a == destination_register.addr_b
                             && source_register.addr_b == destination_register.addr_a
                     }
-                    Modifier::I => {
-                        source_register.addr_a == destination_register.addr_a
-                            && source_register.addr_b == destination_register.addr_b
-                            && source_register.mode_a == destination_register.mode_a
-                            && source_register.mode_b == destination_register.mode_b
-                    }
+                    Modifier::I => source_register == destination_register,
                 };
 
                 current_queue.push_back(if skip { task + 2 } else { task + 1 })

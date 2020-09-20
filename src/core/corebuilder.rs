@@ -172,7 +172,6 @@ impl CoreBuilder {
         let mut core_instructions = vec![
             CoreInstruction::from_instruction(
                 initial_instruction.clone().extract(),
-                0,
                 *core_size
             );
             *core_size
@@ -186,7 +185,7 @@ impl CoreBuilder {
             initial_offsets[i] += offset;
             for instruction in &warrior.instructions {
                 core_instructions[offset] =
-                    CoreInstruction::from_instruction(instruction.clone(), offset, *core_size);
+                    CoreInstruction::from_instruction(instruction.clone(), *core_size);
                 offset += 1;
             }
 
@@ -210,7 +209,7 @@ impl CoreBuilder {
             task_queues,
             current_queue: 0,
             total_instructions: 0,
-            living_warriors_count: warriors.len(),
+            living_warriors: warriors.iter().enumerate().map(|(i, _)| i).collect(),
             logger: None,
         })
     }
