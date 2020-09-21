@@ -3,9 +3,7 @@ pub use corebuilder::*;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
-use crate::{
-    logger::GameEvent, logger::Logger, parser::instruction::Modifier, parser::instruction::Opcode,
-};
+use crate::{logger::GameEvent, parser::instruction::Modifier, parser::instruction::Opcode};
 use crate::{
     parser::instruction::AddressMode,
     warrior::{Instruction, Warrior},

@@ -167,7 +167,6 @@ impl CoreBuilder {
             warriors,
             maximum_number_of_tasks,
             core_size,
-            logger,
             ..
         } = self;
         let mut core_instructions = vec![

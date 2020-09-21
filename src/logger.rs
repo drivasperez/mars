@@ -21,6 +21,12 @@ impl DebugLogger {
     }
 }
 
+impl Default for DebugLogger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // TODO: Make this actually good
 impl Logger for DebugLogger {
     fn log(&self, current_game_state: &Core, event: GameEvent) {
