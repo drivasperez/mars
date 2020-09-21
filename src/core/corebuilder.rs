@@ -192,16 +192,15 @@ impl CoreBuilder {
             offset += separation;
         }
 
-        let task_queues: Vec<VecDeque<usize>> = initial_offsets
+        let task_queues = initial_offsets
             .iter()
-            .map(|offset| {
+            .zip(warriors)
+            .map(|(offset, warrior)| {
                 let mut v = VecDeque::with_capacity(*maximum_number_of_tasks);
                 v.push_back(*offset);
-                v
+                (warrior, v)
             })
             .collect();
-
-        let warriors: Vec<&Warrior> = warriors.iter().collect();
 
         Ok(Core {
             core: self,
@@ -209,7 +208,6 @@ impl CoreBuilder {
             task_queues,
             current_queue: 0,
             total_instructions: 0,
-            living_warriors: warriors.iter().enumerate().map(|(i, _)| i).collect(),
             logger: None,
         })
     }

@@ -1,6 +1,5 @@
 mod corebuilder;
 pub use corebuilder::*;
-use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
@@ -77,10 +76,9 @@ pub enum MatchOutcome<'a> {
 pub struct Core<'a> {
     core: &'a CoreBuilder,
     instructions: Vec<CoreInstruction>,
-    task_queues: Vec<VecDeque<usize>>,
+    task_queues: VecDeque<(&'a Warrior, VecDeque<usize>)>,
     current_queue: usize,
     total_instructions: usize,
-    living_warriors: HashSet<usize>,
     logger: Option<Box<dyn Logger>>,
 }
 
@@ -102,11 +100,11 @@ impl Core<'_> {
             }
         }
 
-        let warriors: Vec<&Warrior> = self
-            .living_warriors
-            .iter()
-            .map(|&x| &self.core.warriors[x])
-            .collect();
+        let warriors: Vec<&Warrior> = self.task_queues.iter().map(|(w, _)| *w).collect();
+
+        println!("Finished after {} cycles", self.total_instructions);
+        println!("Queues: {:#?}", self.task_queues);
+
         match warriors.len() {
             1 => MatchOutcome::Win(warriors[0]),
             _ => MatchOutcome::Draw(warriors),
@@ -199,14 +197,16 @@ impl Core<'_> {
         let fold_write = |x| Core::fold(x, write_distance, core_size);
         let decrement = |x| Core::decrement_address(x, write_distance);
 
-        let current_queue = &mut self.task_queues[self.current_queue];
+        // Unwrap because this function won't be run when empty... Maybe this is not true.
+        let mut current = self.task_queues.pop_front().unwrap();
+        let current_queue = &mut current.1;
 
         // Get the task, killing the warrior if it has no tasks.
         let task = match current_queue.pop_front() {
             Some(v) => v,
             None => {
-                self.living_warriors.remove(&self.current_queue);
-                return if self.living_warriors.len() == 0 {
+                return if self.task_queues.len() == 0 {
+                    self.task_queues.push_front(current);
                     ExecutionOutcome::GameOver
                 } else {
                     ExecutionOutcome::Continue
@@ -240,7 +240,6 @@ impl Core<'_> {
         //     source_ptr, source_register, destination_ptr, destination_register
         // );
 
-        let current_queue = &mut self.task_queues[self.current_queue];
         match instruction_register.opcode {
             Opcode::Dat => {}
             Opcode::Mov => {
@@ -634,6 +633,8 @@ impl Core<'_> {
         } else {
             self.current_queue + 1
         };
+
+        self.task_queues.push_back(current);
 
         self.total_instructions += 1;
         if self.total_instructions > self.core.instruction_limit {
