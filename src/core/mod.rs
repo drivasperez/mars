@@ -90,7 +90,6 @@ pub struct Core<'a> {
     task_queues: VecDeque<(&'a Warrior, VecDeque<usize>)>,
     current_queue: usize,
     cycle_count: usize,
-    logger: Option<Box<dyn Logger>>,
 }
 
 impl Core<'_> {
@@ -111,7 +110,7 @@ impl Core<'_> {
 
     pub fn run(&mut self) -> MatchOutcome {
         while let ExecutionOutcome::Continue = self.run_once() {
-            if let Some(ref logger) = self.logger {
+            if let Some(ref logger) = self.core.logger {
                 logger.log(&self, GameEvent::Continue);
             }
         }
@@ -123,7 +122,7 @@ impl Core<'_> {
             _ => MatchOutcome::Draw(warriors),
         };
 
-        if let Some(ref logger) = self.logger {
+        if let Some(ref logger) = self.core.logger {
             logger.log(self, GameEvent::GameOver(outcome.clone()));
         }
 
@@ -224,11 +223,10 @@ impl Core<'_> {
         let task = match current_queue.pop_front() {
             Some(v) => v,
             None => {
-                if let Some(ref logger) = self.logger {
+                if let Some(ref logger) = self.core.logger {
                     logger.log(self, GameEvent::WarriorKilled(current.0));
                 }
-                return if self.task_queues.len() == 0 {
-                    self.task_queues.push_front(current);
+                return if self.task_queues.len() <= 1 {
                     ExecutionOutcome::GameOver
                 } else {
                     ExecutionOutcome::Continue
