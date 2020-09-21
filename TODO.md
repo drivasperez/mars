@@ -9,7 +9,7 @@
 
 ### Core
 
-- [ ] What is the main number type? i32, u32, isize, usize?
+- [x] What is the main number type? i32, u32, isize, usize? (usize for now)
 
 ## Features
 
@@ -38,11 +38,12 @@
 
 ### Core
 
-- [ ] Helpers for running core, ie wrapping addition/subtraction, following indirect addressing and inc/decrementing ptrs.
-- [ ] Actually process instructions!
-- [ ] Report wins/losses
+- [x] Helpers for running core, ie wrapping addition/subtraction, following indirect addressing and inc/decrementing ptrs.
+- [x] Actually process instructions!
+- [x] Report wins/losses
 - [ ] Random address and separation
-- [ ] Fold_read and fold_write need to take isize, I think.
+- [ ] ~Fold_read and fold_write need to take isize, I think.~
+- [ ] Change which task queue we're on from pointer to a queue, placing the queue back on the task queue queue if it has tasks, dropping if not. Keep track of which warrior each task queue corresponds to.
 
 ### Logging
 
