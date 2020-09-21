@@ -222,8 +222,8 @@ fn build_and_run_stone() {
         vec![
             "MOV.I <2, $3",
             "ADD.F $3, $9",
-            "JMP.B $8, $0",
-            "DAT.F #0, $0",
+            "JMP.B $8, $9",
+            "ADD.F $3, $9",
             "DAT.F #6, #4",
             "DAT.F $0, $0",
             "DAT.F $0, $0",
@@ -232,4 +232,41 @@ fn build_and_run_stone() {
             "DAT.F $0, $0"
         ]
     );
+
+    core.run_once();
+    assert_eq!(
+        core.instructions
+            .iter()
+            .map(|x| format!("{}", x))
+            .collect::<Vec<String>>(),
+        vec![
+            "MOV.I <8, $7",
+            "ADD.F $3, $9",
+            "JMP.B $8, $9",
+            "ADD.F $3, $9",
+            "DAT.F #6, #4",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0"
+        ]
+    );
+}
+
+#[test]
+fn wait_vs_armadillo() {
+    let armadillo = Warrior::parse(include_str!("../../warriors/armadillo.red")).unwrap();
+    let wait = Warrior::parse(include_str!("../../warriors/wait.red")).unwrap();
+    let warriors = vec![armadillo.clone(), wait.clone()];
+
+    let mut cb = CoreBuilder::new();
+    let mut core = cb
+        .separation(Separation::Fixed(4000))
+        .load_warriors(&warriors)
+        .unwrap()
+        .build()
+        .unwrap();
+
+    assert_eq!(core.run(), MatchOutcome::Win(&armadillo));
 }

@@ -122,7 +122,7 @@ impl Core<'_> {
     }
 
     fn evaluate_operand(&mut self, mode: AddressMode, addr: usize, task: usize) -> usize {
-        println!("Evaluating: {} {} at task {}", mode, addr, task);
+        // println!("Evaluating: {} {} at task {}", mode, addr, task);
         match mode {
             AddressMode::Immediate => task,
             AddressMode::Direct => {
@@ -197,6 +197,7 @@ impl Core<'_> {
         let core_size = self.core.core_size;
         let fold_read = |x| Core::fold(x, read_distance, core_size);
         let fold_write = |x| Core::fold(x, write_distance, core_size);
+        let decrement = |x| Core::decrement_address(x, write_distance);
 
         let current_queue = &mut self.task_queues[self.current_queue];
 
@@ -233,11 +234,11 @@ impl Core<'_> {
 
         destination_register = self.instructions[destination_ptr].clone();
 
-        println!("Instruction: {}", instruction_register);
-        println!(
-            "Source {}: {}, Destination {}: {}",
-            source_ptr, source_register, destination_ptr, destination_register
-        );
+        // println!("Instruction: {}", instruction_register);
+        // println!(
+        //     "Source {}: {}, Destination {}: {}",
+        //     source_ptr, source_register, destination_ptr, destination_register
+        // );
 
         let current_queue = &mut self.task_queues[self.current_queue];
         match instruction_register.opcode {
@@ -526,7 +527,7 @@ impl Core<'_> {
             Opcode::Djn => match instruction_register.modifier {
                 Modifier::A | Modifier::BA => {
                     self.instructions[destination_ptr].addr_a =
-                        fold_write(self.instructions[destination_ptr].addr_a - 1);
+                        fold_write(decrement(self.instructions[destination_ptr].addr_a));
                     current_queue.push_back(if self.instructions[destination_ptr].addr_a != 0 {
                         source_ptr
                     } else {
@@ -535,7 +536,7 @@ impl Core<'_> {
                 }
                 Modifier::B | Modifier::AB => {
                     self.instructions[destination_ptr].addr_b =
-                        fold_write(self.instructions[destination_ptr].addr_b - 1);
+                        fold_write(decrement(self.instructions[destination_ptr].addr_b));
                     current_queue.push_back(if self.instructions[destination_ptr].addr_b != 0 {
                         source_ptr
                     } else {
@@ -544,9 +545,9 @@ impl Core<'_> {
                 }
                 _ => {
                     self.instructions[destination_ptr].addr_a =
-                        fold_write(self.instructions[destination_ptr].addr_a - 1);
+                        fold_write(decrement(self.instructions[destination_ptr].addr_a));
                     self.instructions[destination_ptr].addr_b =
-                        fold_write(self.instructions[destination_ptr].addr_b - 1);
+                        fold_write(decrement(self.instructions[destination_ptr].addr_b));
                     current_queue.push_back(
                         if self.instructions[destination_ptr].addr_a != 0
                             && self.instructions[destination_ptr].addr_b != 0
