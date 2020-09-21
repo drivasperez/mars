@@ -3,7 +3,9 @@ pub use corebuilder::*;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
-use crate::{logger::Logger, parser::instruction::Modifier, parser::instruction::Opcode};
+use crate::{
+    logger::GameEvent, logger::Logger, parser::instruction::Modifier, parser::instruction::Opcode,
+};
 use crate::{
     parser::instruction::AddressMode,
     warrior::{Instruction, Warrior},
@@ -66,10 +68,19 @@ impl CoreInstruction {
 /// the match is counted as a win for that warrior. If the game's instruction counter
 /// reaches its maximum value before a winner can be declared,
 /// the match is a draw between all warriors that are still active.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MatchOutcome<'a> {
     Win(&'a Warrior),
     Draw(Vec<&'a Warrior>),
+}
+
+impl Display for MatchOutcome<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Win(warrior) => write!(f, "Match won by: {}", warrior),
+            Self::Draw(_) => write!(f, "Match was a draw"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -78,11 +89,16 @@ pub struct Core<'a> {
     instructions: Vec<CoreInstruction>,
     task_queues: VecDeque<(&'a Warrior, VecDeque<usize>)>,
     current_queue: usize,
-    total_instructions: usize,
+    cycle_count: usize,
     logger: Option<Box<dyn Logger>>,
 }
 
 impl Core<'_> {
+    /// The core's current cycle count.
+    pub fn cycle_count(&self) -> usize {
+        self.cycle_count
+    }
+
     /// Utility for calculating wrapped reads/writes based on core size and read/write distance.
     fn fold(ptr: usize, limit: usize, core_size: usize) -> usize {
         let mut result = ptr % limit;
@@ -96,19 +112,22 @@ impl Core<'_> {
     pub fn run(&mut self) -> MatchOutcome {
         while let ExecutionOutcome::Continue = self.run_once() {
             if let Some(ref logger) = self.logger {
-                logger.log(&self);
+                logger.log(&self, GameEvent::Continue);
             }
         }
 
         let warriors: Vec<&Warrior> = self.task_queues.iter().map(|(w, _)| *w).collect();
 
-        println!("Finished after {} cycles", self.total_instructions);
-        println!("Queues: {:#?}", self.task_queues);
-
-        match warriors.len() {
+        let outcome = match warriors.len() {
             1 => MatchOutcome::Win(warriors[0]),
             _ => MatchOutcome::Draw(warriors),
+        };
+
+        if let Some(ref logger) = self.logger {
+            logger.log(self, GameEvent::GameOver(outcome.clone()));
         }
+
+        outcome
     }
 
     fn decrement_address(ptr: usize, limit: usize) -> usize {
@@ -205,10 +224,9 @@ impl Core<'_> {
         let task = match current_queue.pop_front() {
             Some(v) => v,
             None => {
-                println!(
-                    "Killing a warrior: {} after {} cycles",
-                    current.0, self.total_instructions
-                );
+                if let Some(ref logger) = self.logger {
+                    logger.log(self, GameEvent::WarriorKilled(current.0));
+                }
                 return if self.task_queues.len() == 0 {
                     self.task_queues.push_front(current);
                     ExecutionOutcome::GameOver
@@ -642,8 +660,8 @@ impl Core<'_> {
 
         self.task_queues.push_back(current);
 
-        self.total_instructions += 1;
-        if self.total_instructions >= self.core.cycles_before_tie {
+        self.cycle_count += 1;
+        if self.cycle_count >= self.core.cycles_before_tie {
             return ExecutionOutcome::GameOver;
         };
 

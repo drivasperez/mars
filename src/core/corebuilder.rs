@@ -207,7 +207,7 @@ impl CoreBuilder {
             instructions: core_instructions,
             task_queues,
             current_queue: 0,
-            total_instructions: 0,
+            cycle_count: 0,
             logger: None,
         })
     }

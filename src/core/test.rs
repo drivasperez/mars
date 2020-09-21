@@ -260,11 +260,14 @@ fn wait_vs_armadillo() {
     let wait = Warrior::parse(include_str!("../../warriors/wait.red")).unwrap();
     let warriors = vec![armadillo.clone(), wait.clone()];
 
+    let logger = crate::logger::DebugLogger::new();
+
     let mut cb = CoreBuilder::new();
     let mut core = cb
         .separation(Separation::Fixed(4000))
         .load_warriors(&warriors)
         .unwrap()
+        .log_with(Box::new(logger))
         .build()
         .unwrap();
 
