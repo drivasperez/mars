@@ -205,6 +205,10 @@ impl Core<'_> {
         let task = match current_queue.pop_front() {
             Some(v) => v,
             None => {
+                println!(
+                    "Killing a warrior: {} after {} cycles",
+                    current.0, self.total_instructions
+                );
                 return if self.task_queues.len() == 0 {
                     self.task_queues.push_front(current);
                     ExecutionOutcome::GameOver
@@ -623,7 +627,9 @@ impl Core<'_> {
 
             Opcode::Spl => {
                 current_queue.push_back(task + 1);
-                current_queue.push_back(source_register.addr_a)
+                if current_queue.len() < self.core.maximum_number_of_tasks {
+                    current_queue.push_back(source_register.addr_a);
+                }
             }
             Opcode::Nop => current_queue.push_back(task + 1),
         };
@@ -637,7 +643,7 @@ impl Core<'_> {
         self.task_queues.push_back(current);
 
         self.total_instructions += 1;
-        if self.total_instructions > self.core.instruction_limit {
+        if self.total_instructions >= self.core.cycles_before_tie {
             return ExecutionOutcome::GameOver;
         };
 
