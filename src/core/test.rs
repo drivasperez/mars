@@ -273,3 +273,24 @@ fn wait_vs_armadillo() {
 
     assert_eq!(core.run(), MatchOutcome::Win(&armadillo));
 }
+
+#[test]
+fn stone_vs_imp() {
+    let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
+    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+    let warriors = vec![stone.clone(), imp.clone()];
+
+    let logger = crate::logger::DebugLogger::new();
+
+    let mut cb = CoreBuilder::new();
+    let core = cb
+        .separation(Separation::Fixed(4000))
+        .load_warriors(&warriors)
+        .unwrap()
+        .log_with(Box::new(logger));
+
+    for _ in 0..=10 {
+        let mut core = core.build().unwrap();
+        core.run();
+    }
+}

@@ -243,7 +243,7 @@ impl Core<'_> {
             instruction_register.addr_a,
             task,
         );
-        source_register = self.instructions[source_ptr].clone();
+        source_register = self.instructions[fold_read(source_ptr)].clone();
 
         // Evaluate the IR's B operand and put the resolved instruction in the destination register.
         let destination_ptr = self.evaluate_operand(
