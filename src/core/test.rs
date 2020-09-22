@@ -4,6 +4,7 @@ use super::*;
 fn fold() {
     assert_eq!(Core::fold(44, 8000, 8000), 44);
     assert_eq!(Core::fold(8060, 8000, 8000), 60);
+    assert_eq!(Core::fold(8000, 8000, 8000), 0);
 }
 
 #[test]
@@ -108,6 +109,40 @@ fn build_and_run_imp() {
             "MOV.I $0, $1",
             "MOV.I $0, $1",
             "MOV.I $0, $1"
+        ]
+    );
+}
+
+#[test]
+fn armadillo_builds() {
+    let armadillo = Warrior::parse(include_str!("../../warriors/armadillo.red")).unwrap();
+    let warriors = vec![armadillo];
+
+    let mut cb = CoreBuilder::new();
+    let core = cb
+        .core_size(10)
+        .separation(Separation::Fixed(5))
+        .load_warriors(&warriors)
+        .unwrap()
+        .build()
+        .unwrap();
+
+    assert_eq!(
+        core.instructions
+            .iter()
+            .map(|x| format!("{}", x))
+            .collect::<Vec<String>>(),
+        vec![
+            "SPL.B $0, $0",
+            "ADD.AB #9, $1",
+            "MOV.I $8, $1",
+            "JMP.B $8, $0",
+            "MOV.I $1, <9",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0",
+            "DAT.F $0, $0"
         ]
     );
 }

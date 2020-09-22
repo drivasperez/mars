@@ -4,7 +4,7 @@
 
 ### Parser
 
-- [ ] Multiple Org pseudo-instructions should be accepted, and the last one used.
+- [x] Multiple Org pseudo-instructions should be accepted, and the last one used.
 - [ ] END pseudo-instruction should equivalent to an ORG instruction.
 
 ### Core
@@ -16,7 +16,7 @@
 ### Parser
 
 - [ ] Allow using global core variables in redcode, CORE_SIZE, MAX_INSTRUCTIONS etc.
-- [ ] When parsing instructions with no given modifier:
+- [x] When parsing instructions with no given modifier:
 
 > Oh, one more thing. How did I know which modifier to add to which instruction? (and, more importantly, how does the MARS add them if we leave them off?) Well, you can usually do it with a bit of common sense, but the '94 standard does defines a set of rules for that purpose.
 >
@@ -41,7 +41,8 @@
 - [x] Helpers for running core, ie wrapping addition/subtraction, following indirect addressing and inc/decrementing ptrs.
 - [x] Actually process instructions!
 - [x] Report wins/losses
-- [ ] Random address and separation
+- [x] Random separation
+- [ ] Random address
 - [x] Change which task queue we're on from pointer to a queue, placing the queue back on the task queue queue if it has tasks, dropping if not. Keep track of which warrior each task queue corresponds to.
 - [ ] Profile perf. Suspect using modulus operator (%) is slower than just boundschecking with if.
 
