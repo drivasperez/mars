@@ -265,7 +265,13 @@ fn random_offsets(
     let mut offsets: Vec<(usize, &Warrior)> = Vec::new();
 
     for warrior in warriors {
-        let offset = get_valid_address(&offsets, minimum_separation, instruction_limit, core_size);
+        let offset_addresses: Vec<usize> = offsets.iter().map(|x| x.0).collect();
+        let offset = get_valid_address(
+            &offset_addresses,
+            minimum_separation,
+            instruction_limit,
+            core_size,
+        );
         offsets.push((offset, warrior));
     }
 
@@ -273,24 +279,33 @@ fn random_offsets(
 }
 
 fn get_valid_address(
-    offsets: &[(usize, &Warrior)],
+    offsets: &[usize],
     minimum_separation: usize,
     instruction_limit: usize,
     core_size: usize,
 ) -> usize {
     let fold = |x| Core::fold(x, core_size, core_size);
+    let sub = |x, y| Core::subtract(x, y, core_size);
+    let diff = |x, y| {
+        if x > y {
+            x - y
+        } else {
+            ((core_size - 1) + y) - x
+        }
+    };
 
     let ptr: usize;
 
     let mut rng = rand::thread_rng();
 
+    // This will run forever if we can't fit a warrior...
     'outer: loop {
         let address: usize = rng.gen_range(0, core_size);
 
-        for (offset, _) in offsets {
-            if address > fold(*offset - minimum_separation)
-                && fold(address) < fold(offset + instruction_limit + minimum_separation - 1)
-            {
+        for offset in offsets {
+            let lb = diff(address + instruction_limit, *offset);
+            let ub = diff(offset + instruction_limit, address);
+            if (lb <= minimum_separation) || (ub <= minimum_separation) {
                 continue 'outer;
             }
         }
@@ -300,4 +315,45 @@ fn get_valid_address(
     }
 
     ptr
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn random_addresses() {
+        let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+        let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
+        let imp2 = imp.clone();
+        let stone2 = stone.clone();
+        let imp3 = imp.clone();
+        let stone3 = stone.clone();
+        let warriors = vec![imp, stone, imp2, stone2, imp3, stone3];
+
+        for _ in 0..5000 {
+            let offsets = random_offsets(&warriors, 100, 100, 8000);
+
+            assert_eq!(offsets.len(), 6);
+
+            for offset in &offsets {
+                let mut ok = true;
+                for other in &offsets {
+                    if offset.1 != other.1 {
+                        let o1 = i64::try_from(offset.0).unwrap();
+                        let o2 = i64::try_from(other.0).unwrap();
+
+                        if i64::abs(o1 - o2) < 100 {
+                            ok = false;
+                            break;
+                        }
+                    }
+                }
+
+                assert!(ok);
+            }
+        }
+    }
 }

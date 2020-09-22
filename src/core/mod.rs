@@ -127,6 +127,19 @@ impl Core<'_> {
         outcome
     }
 
+    fn subtract(first: usize, second: usize, limit: usize) -> usize {
+        if first >= second {
+            return first - second;
+        }
+
+        let mut remainder = second - first;
+        while remainder > limit {
+            remainder -= limit;
+        }
+
+        limit - remainder
+    }
+
     fn decrement_address(ptr: usize, limit: usize) -> usize {
         if ptr == 0 {
             limit - 1

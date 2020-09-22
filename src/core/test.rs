@@ -7,6 +7,13 @@ fn fold() {
 }
 
 #[test]
+fn subtract() {
+    assert_eq!(Core::subtract(400, 100, 8000), 300);
+    assert_eq!(Core::subtract(100, 400, 8000), 7700);
+    assert_eq!(Core::subtract(4000, 8000, 8000), 4000);
+}
+
+#[test]
 fn build_and_run_imp() {
     let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
     let warriors = vec![imp];
