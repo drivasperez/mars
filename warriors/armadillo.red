@@ -1,3 +1,5 @@
+;name Armadillo
+;author Not Sure
 org bomb
 bomb    SPL 0
 loop    ADD #3039, ptr

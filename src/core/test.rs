@@ -262,6 +262,24 @@ fn build_and_run_stone() {
 }
 
 #[test]
+fn imp_gate_vs_imp() {
+    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+    let imp_gate = Warrior::parse(include_str!("../../warriors/impgate.red")).unwrap();
+    let warriors = vec![imp.clone(), imp_gate.clone()];
+
+    let logger = crate::logger::DebugLogger::new();
+
+    let mut cb = CoreBuilder::new();
+    let mut core = cb
+        .load_warriors(&warriors)
+        .unwrap()
+        .log_with(Box::new(logger))
+        .build()
+        .unwrap();
+
+    assert_eq!(core.run(), MatchOutcome::Win(&imp_gate));
+}
+#[test]
 fn wait_vs_armadillo() {
     let armadillo = Warrior::parse(include_str!("../../warriors/armadillo.red")).unwrap();
     let wait = Warrior::parse(include_str!("../../warriors/wait.red")).unwrap();
@@ -271,7 +289,7 @@ fn wait_vs_armadillo() {
 
     let mut cb = CoreBuilder::new();
     let mut core = cb
-        .separation(Separation::Fixed(4000))
+        .core_size(8000)
         .load_warriors(&warriors)
         .unwrap()
         .log_with(Box::new(logger))
@@ -282,10 +300,11 @@ fn wait_vs_armadillo() {
 }
 
 #[test]
-fn stone_vs_dwarf() {
+fn stone_vs_dwarf_vs_imp() {
     let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
-    let imp = Warrior::parse(include_str!("../../warriors/dwarf.red")).unwrap();
-    let warriors = vec![stone.clone(), imp.clone()];
+    let dwarf = Warrior::parse(include_str!("../../warriors/dwarf.red")).unwrap();
+    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+    let warriors = vec![stone.clone(), imp.clone(), dwarf.clone()];
 
     let logger = crate::logger::DebugLogger::new();
 
