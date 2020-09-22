@@ -91,6 +91,11 @@ pub struct Core<'a> {
 }
 
 impl Core<'_> {
+    /// Create a `CoreBuilder`, in order to configure and build the core.
+    pub fn builder() -> CoreBuilder {
+        CoreBuilder::new()
+    }
+
     /// The core's current cycle count.
     pub fn cycle_count(&self) -> usize {
         self.cycle_count
