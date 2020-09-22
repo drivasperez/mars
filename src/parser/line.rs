@@ -1,6 +1,9 @@
-use super::instruction::{comment, definition, instruction, org_statement, RawInstruction};
 use super::metadata::{metadata, MetadataValue};
 use super::numeric_expr::NumericExpr;
+use super::{
+    instruction::{comment, definition, instruction, org_statement, RawInstruction},
+    numeric_expr::expr,
+};
 use nom::{
     branch::alt,
     bytes::complete::tag_no_case,
@@ -8,6 +11,8 @@ use nom::{
     combinator::opt,
     combinator::{all_consuming, map},
     multi::separated_list,
+    sequence::pair,
+    sequence::preceded,
     sequence::{delimited, terminated, tuple},
     IResult,
 };
@@ -49,17 +54,28 @@ fn line(i: &str) -> IResult<&str, Line> {
 }
 
 pub(crate) fn lines(i: &str) -> IResult<&str, Vec<Line>> {
-    all_consuming(delimited(
+    all_consuming(preceded(
         multispace0,
-        separated_list(tuple((space0, line_ending, multispace0)), line),
-        ending_line,
+        map(
+            pair(
+                separated_list(tuple((space0, line_ending, multispace0)), line),
+                ending_line,
+            ),
+            |(mut list, end)| {
+                if let Some(val) = end {
+                    list.push(Line::OrgStatement(val));
+                }
+                list
+            },
+        ),
     ))(i)
 }
 
-fn ending_line(i: &str) -> IResult<&str, ()> {
-    map(
-        delimited(multispace0, tag_no_case("END"), multispace0),
-        |_| (),
+fn ending_line(i: &str) -> IResult<&str, Option<NumericExpr>> {
+    delimited(
+        multispace0,
+        preceded(pair(tag_no_case("END"), space0), opt(expr)),
+        multispace0,
     )(i)
 }
 

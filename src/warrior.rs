@@ -293,10 +293,9 @@ fn get_starting_line(
     orgs: &[NumericExpr],
     labels: &HashMap<&str, i64>,
 ) -> Result<usize, EvaluateError> {
-    let starting_line = match orgs.len() {
-        0 => 1,
-        1 => orgs[0].evaluate(labels, 0)?,
-        _ => return Err(EvaluateError::MultipleOrgs),
+    let starting_line = match orgs.last() {
+        None => 1,
+        Some(expr) => expr.evaluate(labels, 0)?,
     };
 
     Ok(starting_line as usize)
