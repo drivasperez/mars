@@ -291,7 +291,6 @@ fn stone_vs_imp() {
 
     let mut cb = CoreBuilder::new();
     let core = cb
-        .separation(Separation::Fixed(4002))
         .load_warriors(&warriors)
         .unwrap()
         .log_with(Box::new(logger));

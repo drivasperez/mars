@@ -169,6 +169,7 @@ impl CoreBuilder {
             warriors,
             maximum_number_of_tasks,
             core_size,
+            instruction_limit,
             ..
         } = self;
         let mut core_instructions = vec![
@@ -179,22 +180,42 @@ impl CoreBuilder {
             *core_size
         ];
 
-        let mut offset = 0_usize;
-        let separation = separation.clone().extract();
+        let separation = separation.clone();
 
-        let mut initial_offsets: Vec<usize> = warriors.iter().map(|w| w.starts_at_line).collect();
-        for (i, warrior) in warriors.iter().enumerate() {
-            initial_offsets[i] += offset;
-            for instruction in &warrior.instructions {
-                core_instructions[offset] =
-                    CoreInstruction::from_instruction(instruction.clone(), *core_size);
-                offset += 1;
+        let mut warrior_offsets: Vec<usize> = warriors.iter().map(|w| w.starts_at_line).collect();
+        match separation {
+            Separation::Random(min_separation) => {
+                let offsets =
+                    random_offsets(&warriors, min_separation, *instruction_limit, *core_size);
+
+                for (i, (offset, warrior)) in offsets.iter().enumerate() {
+                    let mut ptr = offset.clone();
+                    warrior_offsets[i] =
+                        Core::fold(warrior_offsets[i] + ptr, *core_size, *core_size);
+                    for instruction in &warrior.instructions {
+                        core_instructions[ptr] =
+                            CoreInstruction::from_instruction(instruction.clone(), *core_size);
+                        ptr = Core::fold(ptr + 1, *core_size, *core_size);
+                    }
+                }
             }
+            Separation::Fixed(separation) => {
+                let mut ptr = 0_usize;
+                for (i, warrior) in warriors.iter().enumerate() {
+                    warrior_offsets[i] =
+                        Core::fold(warrior_offsets[i] + ptr, *core_size, *core_size);
+                    for instruction in &warrior.instructions {
+                        core_instructions[ptr] =
+                            CoreInstruction::from_instruction(instruction.clone(), *core_size);
+                        ptr = Core::fold(ptr + 1, *core_size, *core_size);
+                    }
 
-            offset += separation;
-        }
+                    ptr = Core::fold(ptr + separation, *core_size, *core_size);
+                }
+            }
+        };
 
-        let task_queues = initial_offsets
+        let task_queues = warrior_offsets
             .iter()
             .zip(warriors)
             .map(|(offset, warrior)| {
@@ -222,16 +243,6 @@ impl CoreBuilder {
 pub enum Separation {
     Random(usize),
     Fixed(usize),
-}
-
-impl Separation {
-    /// Extract the separation value if it's `Fixed`, or get a random `usize` if it's `Random`.
-    pub fn extract(self) -> usize {
-        match self {
-            Self::Random(min_sep) => todo!(),
-            Self::Fixed(f) => f,
-        }
-    }
 }
 
 /// The value to which the core's memory addresses are initialised
@@ -284,8 +295,6 @@ fn get_valid_address(
     instruction_limit: usize,
     core_size: usize,
 ) -> usize {
-    let fold = |x| Core::fold(x, core_size, core_size);
-    let sub = |x, y| Core::subtract(x, y, core_size);
     let diff = |x, y| {
         if x > y {
             x - y
