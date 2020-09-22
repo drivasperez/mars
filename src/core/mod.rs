@@ -15,7 +15,7 @@ enum ExecutionOutcome {
     GameOver,
 }
 
-/// Like a warrior instruction, but its addresses are positive 32-bit integers
+/// Like a warrior instruction, but its addresses are usize rather than i32
 #[derive(Debug, Clone, PartialEq)]
 struct CoreInstruction {
     opcode: Opcode,

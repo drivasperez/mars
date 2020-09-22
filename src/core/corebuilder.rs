@@ -3,6 +3,7 @@ use crate::{
     logger::Logger,
     warrior::{Instruction, Warrior},
 };
+use rand::Rng;
 
 use super::{Core, CoreInstruction};
 use std::collections::VecDeque;
@@ -32,7 +33,7 @@ impl Default for CoreBuilder {
             minimum_separation: 100,
             read_distance: 8000,
             write_distance: 8000,
-            separation: Separation::Random,
+            separation: Separation::Random(100),
             warriors: Vec::new(),
             logger: None,
         }
@@ -153,6 +154,7 @@ impl CoreBuilder {
         Ok(self)
     }
 
+    /// Use a `Logger` to log the battle's output.
     pub fn log_with(&mut self, logger: Box<dyn Logger>) -> &mut Self {
         self.logger = Some(logger);
 
@@ -218,7 +220,7 @@ impl CoreBuilder {
 /// If a core's separation is `Random`, separations will be chosen randomly from the set of numbers larger than the core's minimum separation.
 #[derive(Debug, Clone)]
 pub enum Separation {
-    Random,
+    Random(usize),
     Fixed(usize),
 }
 
@@ -226,7 +228,7 @@ impl Separation {
     /// Extract the separation value if it's `Fixed`, or get a random `usize` if it's `Random`.
     pub fn extract(self) -> usize {
         match self {
-            Self::Random => todo!(),
+            Self::Random(min_sep) => todo!(),
             Self::Fixed(f) => f,
         }
     }
@@ -252,4 +254,50 @@ impl InitialInstruction {
             Self::Fixed(instr) => instr,
         }
     }
+}
+
+fn random_offsets(
+    warriors: &[Warrior],
+    minimum_separation: usize,
+    instruction_limit: usize,
+    core_size: usize,
+) -> Vec<(usize, &Warrior)> {
+    let mut offsets: Vec<(usize, &Warrior)> = Vec::new();
+
+    for warrior in warriors {
+        let offset = get_valid_address(&offsets, minimum_separation, instruction_limit, core_size);
+        offsets.push((offset, warrior));
+    }
+
+    offsets
+}
+
+fn get_valid_address(
+    offsets: &[(usize, &Warrior)],
+    minimum_separation: usize,
+    instruction_limit: usize,
+    core_size: usize,
+) -> usize {
+    let fold = |x| Core::fold(x, core_size, core_size);
+
+    let ptr: usize;
+
+    let mut rng = rand::thread_rng();
+
+    'outer: loop {
+        let address: usize = rng.gen_range(0, core_size);
+
+        for (offset, _) in offsets {
+            if address > fold(*offset - minimum_separation)
+                && fold(address) < fold(offset + instruction_limit + minimum_separation - 1)
+            {
+                continue 'outer;
+            }
+        }
+
+        ptr = address;
+        break;
+    }
+
+    ptr
 }
