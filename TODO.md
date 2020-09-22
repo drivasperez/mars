@@ -42,8 +42,8 @@
 - [x] Actually process instructions!
 - [x] Report wins/losses
 - [ ] Random address and separation
-- [ ] ~Fold_read and fold_write need to take isize, I think.~
-- [ ] Change which task queue we're on from pointer to a queue, placing the queue back on the task queue queue if it has tasks, dropping if not. Keep track of which warrior each task queue corresponds to.
+- [x] Change which task queue we're on from pointer to a queue, placing the queue back on the task queue queue if it has tasks, dropping if not. Keep track of which warrior each task queue corresponds to.
+- [ ] Profile perf. Suspect using modulus operator (%) is slower than just boundschecking with if.
 
 ### Logging
 
