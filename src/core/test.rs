@@ -282,9 +282,9 @@ fn wait_vs_armadillo() {
 }
 
 #[test]
-fn stone_vs_imp() {
+fn stone_vs_dwarf() {
     let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
-    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+    let imp = Warrior::parse(include_str!("../../warriors/dwarf.red")).unwrap();
     let warriors = vec![stone.clone(), imp.clone()];
 
     let logger = crate::logger::DebugLogger::new();
