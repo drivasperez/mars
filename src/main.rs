@@ -38,7 +38,7 @@ fn load_warriors(warriors: Vec<String>) -> Result<Vec<Warrior>> {
 }
 
 fn run_many<'a>(cores: &'a mut [Core]) -> Vec<MatchOutcome<'a>> {
-    let results: Vec<MatchOutcome> = cores.into_par_iter().map(|core| core.run()).collect();
+    let results: Vec<MatchOutcome> = cores.par_iter_mut().map(|core| core.run()).collect();
 
     results
 }
