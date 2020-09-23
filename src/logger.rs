@@ -1,4 +1,5 @@
 use crate::{core::MatchOutcome, warrior::Warrior};
+use std::fmt::Debug;
 
 use super::core::Core;
 
@@ -8,7 +9,7 @@ pub enum GameEvent<'a> {
     Continue,
 }
 
-pub trait Logger: std::fmt::Debug {
+pub trait Logger: Debug + Send + Sync {
     fn log(&self, current_game_state: &Core, event: GameEvent);
 }
 
