@@ -13,3 +13,4 @@ rand = "0.7.3"
 structopt = "0.3.17"
 rayon = "1.4.0"
 anyhow = "1.0.32"
+indicatif = { version = "0.15.0", features = ["rayon"] }

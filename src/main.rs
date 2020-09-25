@@ -1,5 +1,6 @@
 use anyhow::Error;
 use anyhow::Result;
+use indicatif::{ParallelProgressIterator, ProgressIterator};
 use mars::{core::Core, core::MatchOutcome, logger::DebugLogger, warrior::Warrior};
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -20,6 +21,10 @@ struct Opt {
     /// The number of times the match should be repeated.
     #[structopt(short, long)]
     matches: Option<usize>,
+
+    /// Run multiple matches in a single thread
+    #[structopt(long)]
+    single_threaded: bool,
 }
 
 fn load_warriors(warriors: Vec<String>) -> Result<Vec<Warrior>> {
@@ -75,7 +80,23 @@ fn declare_results(match_results: Vec<MatchOutcome>, participants: &[Warrior]) -
 }
 
 fn run_many<'a>(cores: &'a mut [Core]) -> Vec<MatchOutcome<'a>> {
-    let results: Vec<MatchOutcome> = cores.par_iter_mut().map(|core| core.run()).collect();
+    let length = cores.len() as u64;
+    let results: Vec<MatchOutcome> = cores
+        .par_iter_mut()
+        .progress_count(length)
+        .map(|core| core.run())
+        .collect();
+
+    results
+}
+
+fn run_many_single_threaded<'a>(cores: &'a mut [Core]) -> Vec<MatchOutcome<'a>> {
+    let length = cores.len() as u64;
+    let results: Vec<MatchOutcome> = cores
+        .iter_mut()
+        .progress_count(length)
+        .map(|core| core.run())
+        .collect();
 
     results
 }
@@ -85,6 +106,7 @@ fn main() -> Result<(), Error> {
         warriors,
         core_size,
         matches,
+        single_threaded,
     } = Opt::from_args();
 
     let mut builder = Core::builder();
@@ -104,9 +126,7 @@ fn main() -> Result<(), Error> {
 
         core.run();
     } else {
-        let builder = builder
-            .log_with(Box::new(DebugLogger::new()))
-            .load_warriors(&warriors)?;
+        let builder = builder.load_warriors(&warriors)?;
 
         let cores: Result<Vec<Core>> = (0..matches)
             .map(|_| {
@@ -117,7 +137,12 @@ fn main() -> Result<(), Error> {
 
         let mut cores = cores?;
 
-        let results = run_many(&mut cores);
+        let results = if !single_threaded {
+            run_many(&mut cores)
+        } else {
+            run_many_single_threaded(&mut cores)
+        };
+
         let match_count = results.len();
 
         println!(
