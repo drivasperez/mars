@@ -1,8 +1,6 @@
 use anyhow::Error;
 use anyhow::Result;
-use mars::{
-    core::Core, core::CoreBuilder, core::MatchOutcome, logger::DebugLogger, warrior::Warrior,
-};
+use mars::{core::Core, core::MatchOutcome, logger::DebugLogger, warrior::Warrior};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::Path;
@@ -73,7 +71,7 @@ fn declare_results(match_results: Vec<MatchOutcome>, participants: &[Warrior]) -
         }
     }
 
-    format!("{}", winner)
+    String::from(winner)
 }
 
 fn run_many<'a>(cores: &'a mut [Core]) -> Vec<MatchOutcome<'a>> {

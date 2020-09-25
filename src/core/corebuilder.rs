@@ -189,7 +189,7 @@ impl CoreBuilder {
                     random_offsets(&warriors, min_separation, *instruction_limit, *core_size);
 
                 for (i, (offset, warrior)) in offsets.iter().enumerate() {
-                    let mut ptr = offset.clone();
+                    let mut ptr = *offset;
                     warrior_offsets[i] =
                         Core::fold(warrior_offsets[i] + ptr, *core_size, *core_size);
                     for instruction in &warrior.instructions {
