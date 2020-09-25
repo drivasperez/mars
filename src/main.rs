@@ -81,24 +81,20 @@ fn declare_results(match_results: Vec<MatchOutcome>, participants: &[Warrior]) -
 
 fn run_many<'a>(cores: &'a mut [Core]) -> Vec<MatchOutcome<'a>> {
     let length = cores.len() as u64;
-    let results: Vec<MatchOutcome> = cores
+    cores
         .par_iter_mut()
         .progress_count(length)
         .map(|core| core.run())
-        .collect();
-
-    results
+        .collect()
 }
 
 fn run_many_single_threaded<'a>(cores: &'a mut [Core]) -> Vec<MatchOutcome<'a>> {
     let length = cores.len() as u64;
-    let results: Vec<MatchOutcome> = cores
+    cores
         .iter_mut()
         .progress_count(length)
         .map(|core| core.run())
-        .collect();
-
-    results
+        .collect()
 }
 
 fn main() -> Result<(), Error> {
