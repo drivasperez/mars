@@ -19,8 +19,8 @@ struct Opt {
     core_size: Option<usize>,
 
     /// The number of times the match should be repeated.
-    #[structopt(short, long)]
-    matches: Option<usize>,
+    #[structopt(short, long, default_value = "1")]
+    matches: usize,
 
     /// Run multiple matches in a single thread
     #[structopt(long)]
@@ -111,8 +111,6 @@ fn main() -> Result<(), Error> {
     }
 
     let warriors = load_warriors(warriors)?;
-
-    let matches = matches.unwrap_or(1);
 
     if matches == 1 {
         let mut core = builder
