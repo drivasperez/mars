@@ -5,6 +5,7 @@ fn fold() {
     assert_eq!(Core::fold(44, 8000, 8000), 44);
     assert_eq!(Core::fold(8060, 8000, 8000), 60);
     assert_eq!(Core::fold(8000, 8000, 8000), 0);
+    assert_eq!(Core::fold(7999, 8000, 8000), 7999);
 }
 
 #[test]

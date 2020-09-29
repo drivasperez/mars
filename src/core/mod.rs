@@ -268,7 +268,14 @@ impl Core<'_> {
             task,
         );
 
-        destination_register = self.instructions[destination_ptr].clone();
+        destination_register = self
+            .instructions
+            .get(destination_ptr)
+            .expect(&format!(
+                "Failed with destination ptr {}\n instruction register: {}\n at task {}",
+                destination_ptr, instruction_register, task
+            ))
+            .clone();
 
         // println!("Instruction: {}", instruction_register);
         // println!(

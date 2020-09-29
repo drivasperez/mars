@@ -218,9 +218,16 @@ impl CoreBuilder {
         let task_queues = warrior_offsets
             .iter()
             .zip(warriors)
-            .map(|(offset, warrior)| {
+            .map(|(&offset, warrior)| {
                 let mut v = VecDeque::with_capacity(*maximum_number_of_tasks);
-                v.push_back(*offset);
+                let offset = Core::fold(offset, *core_size, *core_size);
+                if offset >= *core_size {
+                    panic!(
+                        "Task queue overflowed! offset: {}, core_size: {}",
+                        offset, core_size
+                    )
+                }
+                v.push_back(offset);
                 (warrior, v)
             })
             .collect();
