@@ -268,14 +268,7 @@ impl Core<'_> {
             task,
         );
 
-        destination_register = self
-            .instructions
-            .get(destination_ptr)
-            .expect(&format!(
-                "Failed with destination ptr {}\n instruction register: {}\n at task {}",
-                destination_ptr, instruction_register, task
-            ))
-            .clone();
+        destination_register = self.instructions[destination_ptr].clone();
 
         // println!("Instruction: {}", instruction_register);
         // println!(
@@ -311,7 +304,7 @@ impl Core<'_> {
                         self.instructions[destination_ptr].addr_a = source_register.addr_b;
                     }
                 };
-                current_queue.push_back(task + 1);
+                current_queue.push_back(fold_write(task + 1));
             }
             Opcode::Add => {
                 match instruction_register.modifier {
@@ -352,7 +345,7 @@ impl Core<'_> {
                         );
                     }
                 }
-                current_queue.push_back(task + 1);
+                current_queue.push_back(fold_write(task + 1));
             }
             Opcode::Sub => {
                 match instruction_register.modifier {
@@ -409,7 +402,7 @@ impl Core<'_> {
                         ));
                     }
                 }
-                current_queue.push_back(task + 1)
+                current_queue.push_back(fold_write(task + 1))
             }
             Opcode::Mul => {
                 match instruction_register.modifier {
@@ -450,7 +443,7 @@ impl Core<'_> {
                         );
                     }
                 }
-                current_queue.push_back(task + 1)
+                current_queue.push_back(fold_write(task + 1))
             }
             Opcode::Div => {
                 match instruction_register.modifier {
@@ -491,7 +484,7 @@ impl Core<'_> {
                         );
                     }
                 }
-                current_queue.push_back(task + 1)
+                current_queue.push_back(fold_write(task + 1))
             }
             Opcode::Mod => {
                 match instruction_register.modifier {
@@ -532,7 +525,7 @@ impl Core<'_> {
                         );
                     }
                 }
-                current_queue.push_back(task + 1)
+                current_queue.push_back(fold_write(task + 1))
             }
             Opcode::Jmp => current_queue.push_back(source_ptr),
             Opcode::Jmz => match instruction_register.modifier {
@@ -540,21 +533,21 @@ impl Core<'_> {
                     current_queue.push_back(if destination_register.addr_a == 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     })
                 }
                 Modifier::B | Modifier::AB => {
                     current_queue.push_back(if destination_register.addr_b == 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     })
                 }
                 _ => current_queue.push_back(
                     if destination_register.addr_a == 0 && destination_register.addr_b == 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     },
                 ),
             },
@@ -563,21 +556,21 @@ impl Core<'_> {
                     current_queue.push_back(if destination_register.addr_a != 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     })
                 }
                 Modifier::B | Modifier::AB => {
                     current_queue.push_back(if destination_register.addr_b != 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     })
                 }
                 _ => current_queue.push_back(
                     if destination_register.addr_a != 0 && destination_register.addr_b != 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     },
                 ),
             },
@@ -589,7 +582,7 @@ impl Core<'_> {
                     current_queue.push_back(if self.instructions[destination_ptr].addr_a != 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     })
                 }
                 Modifier::B | Modifier::AB => {
@@ -598,7 +591,7 @@ impl Core<'_> {
                     current_queue.push_back(if self.instructions[destination_ptr].addr_b != 0 {
                         source_ptr
                     } else {
-                        task + 1
+                        fold_write(task + 1)
                     })
                 }
                 _ => {
@@ -612,7 +605,7 @@ impl Core<'_> {
                         {
                             source_ptr
                         } else {
-                            task + 1
+                            fold_write(task + 1)
                         },
                     )
                 }
@@ -634,7 +627,11 @@ impl Core<'_> {
                     Modifier::I => source_register == destination_register,
                 };
 
-                current_queue.push_back(if skip { task + 2 } else { task + 1 })
+                current_queue.push_back(if skip {
+                    fold_write(task + 2)
+                } else {
+                    fold_write(task + 1)
+                })
             }
             Opcode::Slt => {
                 let skip = match instruction_register.modifier {
@@ -652,7 +649,11 @@ impl Core<'_> {
                     }
                 };
 
-                current_queue.push_back(if skip { task + 2 } else { task + 1 })
+                current_queue.push_back(if skip {
+                    fold_write(task + 2)
+                } else {
+                    fold_write(task + 1)
+                })
             }
 
             Opcode::Sne => {
@@ -677,16 +678,20 @@ impl Core<'_> {
                     }
                 };
 
-                current_queue.push_back(if skip { task + 2 } else { task + 1 })
+                current_queue.push_back(if skip {
+                    fold_write(task + 2)
+                } else {
+                    fold_write(task + 1)
+                })
             }
 
             Opcode::Spl => {
-                current_queue.push_back(task + 1);
+                current_queue.push_back(fold_write(task + 1));
                 if current_queue.len() < self.core.maximum_number_of_tasks {
                     current_queue.push_back(source_register.addr_a);
                 }
             }
-            Opcode::Nop => current_queue.push_back(task + 1),
+            Opcode::Nop => current_queue.push_back(fold_write(task + 1)),
         };
 
         self.current_queue = if self.current_queue == self.core.warriors.len() - 1 {
