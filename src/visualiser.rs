@@ -1,32 +1,40 @@
 use crossbeam::channel;
 use crossbeam::channel::{Receiver, Sender};
 use crossbeam::thread;
-use mars::core::{Core, ExecutionOutcome};
-use std::io::stdin;
+use mars::core::{Core, CoreChange, ExecutionOutcome};
+use mars::warrior::Warrior;
+use std::collections::VecDeque;
+use std::io::{stdin, stdout, Write};
+use std::ops::Range;
 use std::time::Duration;
-use termion::{event::*, input::TermRead};
+use termion::{color::Rgb, cursor::Goto, event::*, input::TermRead};
+
+type TaskQueue<'a> = (usize, VecDeque<usize>);
 
 pub fn run_with_visualiser(core: Core) {
     let (tx, rx) = channel::bounded(100);
     let (executor_canceller_tx, executor_canceller_rx) = channel::unbounded();
-    let (visuliser_canceller_tx, visualiser_canceller_rx) = channel::unbounded();
-    let (outcome_tx, outcome_rx) = channel::unbounded();
+    let (visualiser_canceller_tx, visualiser_canceller_rx) = channel::unbounded();
+
+    let core_size = core.instructions().len();
+    let task_queues: Vec<TaskQueue> = core
+        .task_queues()
+        .iter()
+        .map(|(warrior, queue)| (warrior.len(), queue.clone()))
+        .collect();
 
     thread::scope(|s| {
-        s.spawn(|_| executor(core, tx, executor_canceller_rx));
         s.spawn(|_| {
             visualiser(
                 rx,
                 visualiser_canceller_rx,
-                outcome_tx,
                 Duration::from_millis(200),
+                core_size,
+                &task_queues,
             )
         });
-
-        s.spawn(|_| controller(vec![executor_canceller_tx, visuliser_canceller_tx]));
-
-        let res = outcome_rx.recv();
-        println!("{:?}", res);
+        s.spawn(|_| executor(core, tx, executor_canceller_rx));
+        s.spawn(|_| controller(vec![executor_canceller_tx, visualiser_canceller_tx]));
     })
     .unwrap();
 }
@@ -85,18 +93,15 @@ fn executor(
     }
 }
 
-#[derive(Debug)]
-enum VisualiserOutcome {
-    Done,
-    Stopped,
-}
-
 fn visualiser(
     rx: Receiver<ExecutionOutcome>,
     controller_rx: Receiver<ControllerMessage>,
-    outcome_tx: Sender<VisualiserOutcome>,
     step_delay: Duration,
+    core_size: usize,
+    task_queues: &[TaskQueue],
 ) {
+    let (_, width) = termion::terminal_size().expect("Couldn't get terminal size");
+    draw_initial_core(core_size, task_queues, width);
     loop {
         let event = rx.recv().expect("Couldn't get event from executor");
         match controller_rx.try_recv() {
@@ -108,23 +113,74 @@ fn visualiser(
                 if let ControllerMessage::Close =
                     controller_rx.recv().expect("Couldn't get message")
                 {
-                    outcome_tx
-                        .send(VisualiserOutcome::Stopped)
-                        .expect("Couldn't report outcome");
                     break;
                 }
             }
         }
 
-        println!("Got event: {:#?}", event);
-
-        if let ExecutionOutcome::GameOver = event {
-            outcome_tx
-                .send(VisualiserOutcome::Done)
-                .expect("Couldn't report outcome");
-            break;
+        match event {
+            ExecutionOutcome::GameOver => break,
+            ExecutionOutcome::Continue(change) => match change {
+                CoreChange::WarriorKilled(_) => {}
+                CoreChange::WarriorPlayed(_, _, _, dest_ptr) => {
+                    let x = dest_ptr as u16 / width;
+                    let y = dest_ptr as u16 % width;
+                    write!(
+                        stdout(),
+                        "{}{}{}{}",
+                        Goto(x, y),
+                        termion::cursor::Hide,
+                        Rgb(255, 255, 255).fg_string(),
+                        '+'
+                    )
+                    .expect("Couldn't write to stdout");
+                }
+            },
         }
 
         std::thread::sleep(step_delay);
+    }
+}
+
+fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], width: u16) {
+    write!(stdout(), "{}{}", termion::clear::All, termion::cursor::Hide)
+        .expect("Couldn't clear terminal");
+
+    let warrior_spans: Vec<Range<u16>> = task_queues
+        .iter()
+        .flat_map(|(warrior_len, queue)| {
+            let warrior_len = *warrior_len as u16;
+            let ranges: Vec<Range<u16>> = queue
+                .iter()
+                .map(|&x| {
+                    let min = x as u16;
+                    let max = min + warrior_len;
+                    min..max
+                })
+                .collect();
+            ranges
+        })
+        .collect();
+
+    for i in 1..=(core_size as u16) {
+        let x = i / width;
+        let y = i % width;
+
+        let mut ch = '.';
+        for range in &warrior_spans {
+            if range.contains(&i) {
+                ch = '+';
+            }
+        }
+
+        write!(
+            stdout(),
+            "{}{}{}{}",
+            Goto(x, y),
+            termion::cursor::Hide,
+            Rgb(255, 255, 255).fg_string(),
+            ch
+        )
+        .expect("Couldn't write to stdout");
     }
 }

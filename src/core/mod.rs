@@ -98,10 +98,18 @@ pub struct Core<'a> {
     cycle_count: usize,
 }
 
-impl Core<'_> {
+impl<'a> Core<'a> {
     /// Create a `CoreBuilder`, in order to configure and build the core.
     pub fn builder() -> CoreBuilder {
         CoreBuilder::new()
+    }
+
+    pub fn instructions(&self) -> &[CoreInstruction] {
+        &self.instructions
+    }
+
+    pub fn task_queues(&self) -> &[(&'a Warrior, VecDeque<usize>)] {
+        self.task_queues.as_slices().0
     }
 
     /// The core's current cycle count.
