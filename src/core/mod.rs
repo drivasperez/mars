@@ -10,14 +10,22 @@ use crate::{
 };
 use std::collections::VecDeque;
 
-enum ExecutionOutcome {
-    Continue,
+/// The result of the execution of a single core instruction.
+#[derive(Debug)]
+pub enum ExecutionOutcome {
+    Continue(CoreChange),
     GameOver,
+}
+
+#[derive(Debug)]
+pub enum CoreChange {
+    WarriorPlayed(String, usize, Opcode, usize),
+    WarriorKilled(String),
 }
 
 /// Like a warrior instruction, but its addresses are usize rather than i32
 #[derive(Debug, Clone, PartialEq)]
-struct CoreInstruction {
+pub struct CoreInstruction {
     opcode: Opcode,
     modifier: Modifier,
     mode_a: AddressMode,
@@ -112,7 +120,7 @@ impl Core<'_> {
     }
 
     pub fn run(&mut self) -> MatchOutcome {
-        while let ExecutionOutcome::Continue = self.run_once() {
+        while let ExecutionOutcome::Continue(_) = self.run_once() {
             if let Some(ref logger) = self.core.logger {
                 logger.log(&self, GameEvent::Continue);
             }
@@ -219,7 +227,7 @@ impl Core<'_> {
         }
     }
 
-    fn run_once(&mut self) -> ExecutionOutcome {
+    pub fn run_once(&mut self) -> ExecutionOutcome {
         let instruction_register: CoreInstruction;
         let source_register: CoreInstruction;
         let destination_register: CoreInstruction;
@@ -234,6 +242,7 @@ impl Core<'_> {
         // Unwrap because this function won't be run when empty... Maybe this is not true.
         let mut current = self.task_queues.pop_front().unwrap();
         let current_queue = &mut current.1;
+        let current_name = current.0.metadata.name().unwrap_or_default().to_owned();
 
         // Get the task, killing the warrior if it has no tasks.
         let task = match current_queue.pop_front() {
@@ -242,10 +251,11 @@ impl Core<'_> {
                 if let Some(ref logger) = self.core.logger {
                     logger.log(self, GameEvent::WarriorKilled(current.0));
                 }
+
                 return if self.task_queues.len() <= 1 {
                     ExecutionOutcome::GameOver
                 } else {
-                    ExecutionOutcome::Continue
+                    ExecutionOutcome::Continue(CoreChange::WarriorKilled(current_name))
                 };
             }
         };
@@ -269,12 +279,6 @@ impl Core<'_> {
         );
 
         destination_register = self.instructions[destination_ptr].clone();
-
-        // println!("Instruction: {}", instruction_register);
-        // println!(
-        //     "Source {}: {}, Destination {}: {}",
-        //     source_ptr, source_register, destination_ptr, destination_register
-        // );
 
         match instruction_register.opcode {
             Opcode::Dat => {}
@@ -695,7 +699,12 @@ impl Core<'_> {
             return ExecutionOutcome::GameOver;
         };
 
-        ExecutionOutcome::Continue
+        ExecutionOutcome::Continue(CoreChange::WarriorPlayed(
+            current_name,
+            task,
+            instruction_register.opcode,
+            destination_ptr,
+        ))
     }
 }
 
