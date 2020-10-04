@@ -2,9 +2,10 @@ use crossbeam::channel;
 use crossbeam::channel::{Receiver, Sender};
 use crossbeam::thread;
 use mars::core::{Core, CoreChange, ExecutionOutcome};
-use mars::warrior::Warrior;
+use rand::Rng;
+use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::io::{stdin, stdout, Write};
+use std::io::{stdin, stdout, Stdout, Write};
 use std::ops::Range;
 use std::time::Duration;
 use termion::{color::Rgb, cursor::Goto, event::*, input::TermRead};
@@ -23,20 +24,37 @@ pub fn run_with_visualiser(core: Core) {
         .map(|(warrior, queue)| (warrior.len(), queue.clone()))
         .collect();
 
+    let colours = core
+        .task_queues()
+        .iter()
+        .map(|(warrior, _)| {
+            let name = warrior.metadata.name().unwrap_or_default();
+            let mut rng = rand::thread_rng();
+            let x = rng.gen_range(0, 255);
+            let y = rng.gen_range(0, 255);
+            let z = rng.gen_range(0, 255);
+
+            (name.to_owned(), (x, y, z))
+        })
+        .collect();
+
     thread::scope(|s| {
         s.spawn(|_| {
             visualiser(
                 rx,
                 visualiser_canceller_rx,
-                Duration::from_millis(200),
+                Duration::from_millis(4),
                 core_size,
                 &task_queues,
+                colours,
             )
         });
         s.spawn(|_| executor(core, tx, executor_canceller_rx));
         s.spawn(|_| controller(vec![executor_canceller_tx, visualiser_canceller_tx]));
     })
     .unwrap();
+
+    write!(stdout(), "{}", termion::cursor::Show).expect("Oh... no.");
 }
 
 enum ControllerMessage {
@@ -99,9 +117,12 @@ fn visualiser(
     step_delay: Duration,
     core_size: usize,
     task_queues: &[TaskQueue],
+    colours: HashMap<String, (u8, u8, u8)>,
 ) {
-    let (_, width) = termion::terminal_size().expect("Couldn't get terminal size");
-    draw_initial_core(core_size, task_queues, width);
+    let (width, _) = termion::terminal_size().expect("Couldn't get terminal size");
+    let mut stdout = stdout();
+    draw_initial_core(core_size, task_queues, &mut stdout, width);
+
     loop {
         let event = rx.recv().expect("Couldn't get event from executor");
         match controller_rx.try_recv() {
@@ -122,28 +143,45 @@ fn visualiser(
             ExecutionOutcome::GameOver => break,
             ExecutionOutcome::Continue(change) => match change {
                 CoreChange::WarriorKilled(_) => {}
-                CoreChange::WarriorPlayed(_, _, _, dest_ptr) => {
-                    let x = dest_ptr as u16 / width;
-                    let y = dest_ptr as u16 % width;
+                CoreChange::WarriorPlayed(name, task_ptr, _, dest_ptr) => {
+                    let (cx, cy, cz) = colours.get(&name).unwrap_or(&(255_u8, 255_u8, 255_u8));
+                    let dest_ptr = dest_ptr + 1;
+                    let dest_x = dest_ptr as u16 % width;
+                    let dest_y = dest_ptr as u16 / width;
+
+                    let task_ptr = task_ptr + 1;
+                    let task_x = task_ptr as u16 % width;
+                    let task_y = task_ptr as u16 / width;
                     write!(
-                        stdout(),
+                        stdout,
                         "{}{}{}{}",
-                        Goto(x, y),
+                        Goto(dest_x, dest_y),
                         termion::cursor::Hide,
-                        Rgb(255, 255, 255).fg_string(),
+                        Rgb(*cx, *cy, *cz).fg_string(),
                         '+'
+                    )
+                    .expect("Couldn't write to stdout");
+                    write!(
+                        stdout,
+                        "{}{}{}{}",
+                        Goto(task_x, task_y),
+                        termion::cursor::Hide,
+                        Rgb(*cx, *cy, *cz).fg_string(),
+                        '*'
                     )
                     .expect("Couldn't write to stdout");
                 }
             },
         }
 
+        stdout.flush().expect("Couldn't flush stdout");
+
         std::thread::sleep(step_delay);
     }
 }
 
-fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], width: u16) {
-    write!(stdout(), "{}{}", termion::clear::All, termion::cursor::Hide)
+fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], stdout: &mut Stdout, width: u16) {
+    write!(stdout, "{}{}", termion::clear::All, termion::cursor::Hide)
         .expect("Couldn't clear terminal");
 
     let warrior_spans: Vec<Range<u16>> = task_queues
@@ -163,8 +201,8 @@ fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], width: u16) {
         .collect();
 
     for i in 1..=(core_size as u16) {
-        let x = i / width;
-        let y = i % width;
+        let x = i % width;
+        let y = i / width;
 
         let mut ch = '.';
         for range in &warrior_spans {
@@ -174,7 +212,7 @@ fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], width: u16) {
         }
 
         write!(
-            stdout(),
+            stdout,
             "{}{}{}{}",
             Goto(x, y),
             termion::cursor::Hide,
@@ -183,4 +221,6 @@ fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], width: u16) {
         )
         .expect("Couldn't write to stdout");
     }
+
+    stdout.flush().expect("Couldn't flush stdout");
 }
