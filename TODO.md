@@ -49,3 +49,12 @@
 ### Logging
 
 - [ ] Improve DebugLogger to collect ongoing stats or whatever.
+
+### Visualiser
+
+- [ ] More UI (Show paused/unpaused, list of alive warriors etc)
+- [ ] Switch to crossterm (termion is unix-only)
+- [ ] First and second line of visualiser seem to be drawing in the same place.
+- [ ] Back/forwards
+- [ ] Reorganise code, reduce use of unwrap.
+- [ ] Run visualiser on the main thread, no point spawning three threads and having main thread doing nothing.
