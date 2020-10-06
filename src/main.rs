@@ -8,7 +8,7 @@ use std::path::Path;
 use std::{fs::File, io::Read};
 use structopt::StructOpt;
 
-mod visualiser;
+mod visual;
 
 #[derive(StructOpt)]
 struct Opt {
@@ -123,7 +123,7 @@ fn main() -> Result<(), Error> {
 
     if with_visualiser {
         let core = builder.load_warriors(&warriors)?.build()?;
-        visualiser::run_with_visualiser(core);
+        visual::run_with_visualiser(core);
     } else if matches == 1 {
         let mut core = builder
             .load_warriors(&warriors)?
