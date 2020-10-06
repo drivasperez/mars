@@ -11,7 +11,7 @@ mod visualiser;
 
 type TaskQueue<'a> = (usize, VecDeque<usize>);
 
-pub fn run_with_visualiser(core: Core) {
+pub fn run_with_visualiser(core: Core) -> anyhow::Result<()> {
     let (tx, rx) = channel::bounded(100);
     let (executor_canceller_tx, executor_canceller_rx) = channel::unbounded();
     let (visualiser_canceller_tx, visualiser_canceller_rx) = channel::unbounded();
@@ -51,5 +51,7 @@ pub fn run_with_visualiser(core: Core) {
             colours,
         );
     })
-    .unwrap();
+    .map_err(|e| anyhow::anyhow!("Thread panic: {:?}", e))?;
+
+    Ok(())
 }

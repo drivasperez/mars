@@ -123,7 +123,7 @@ fn main() -> Result<(), Error> {
 
     if with_visualiser {
         let core = builder.load_warriors(&warriors)?.build()?;
-        visual::run_with_visualiser(core);
+        visual::run_with_visualiser(core)?;
     } else if matches == 1 {
         let mut core = builder
             .load_warriors(&warriors)?
