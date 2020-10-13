@@ -5,6 +5,10 @@ use mars::core::ExecutionOutcome;
 use std::collections::HashMap;
 use std::io::Stdout;
 use std::time::Duration;
+use tui::backend::{Backend, CrosstermBackend};
+use tui::layout::{Constraint, Direction, Layout};
+use tui::widgets::{Block, Borders, Clear, Widget};
+use tui::Terminal;
 
 pub fn setup_visualiser(
     rx: Receiver<ExecutionOutcome>,
@@ -13,7 +17,35 @@ pub fn setup_visualiser(
     core_size: usize,
     task_queues: &[TaskQueue],
     colours: HashMap<String, (u8, u8, u8)>,
-) {
+) -> anyhow::Result<()> {
+    let mut terminal = build_terminal()?;
+
+    loop {
+        let event = rx.recv()?;
+        match controller_rx.try_recv() {
+            Err(_) => {}
+            Ok(ControllerMessage::Close) => {
+                break;
+            }
+            Ok(ControllerMessage::Paused) => {
+                if let ControllerMessage::Close =
+                    controller_rx.recv().expect("Couldn't get message")
+                {
+                    break;
+                }
+            }
+        }
+
+        terminal.draw(|f| {
+            let size = f.size();
+            let block = Block::default().title("MARS").borders(Borders::ALL);
+
+            f.render_widget(block, size);
+        })?;
+    }
+
+    Ok(())
+
     // let (width, _) = termion::terminal_size().expect("Couldn't get terminal size");
     // let mut stdout = stdout();
     // draw_initial_core(core_size, task_queues, &mut stdout, width);
@@ -118,4 +150,11 @@ fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], stdout: &mut S
     // }
 
     // stdout.flush().expect("Couldn't flush stdout");
+}
+
+fn build_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>, std::io::Error> {
+    let stdout = std::io::stdout();
+    let mut backend = CrosstermBackend::new(stdout);
+    backend.clear()?;
+    Terminal::new(backend)
 }
