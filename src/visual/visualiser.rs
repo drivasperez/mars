@@ -5,10 +5,19 @@ use mars::core::ExecutionOutcome;
 use std::collections::HashMap;
 use std::io::Stdout;
 use std::time::Duration;
-use tui::backend::{Backend, CrosstermBackend};
-use tui::layout::{Constraint, Direction, Layout};
-use tui::widgets::{Block, Borders, Clear, Widget};
-use tui::Terminal;
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    widgets::Chart,
+};
+use tui::{
+    layout::{Constraint, Direction, Layout},
+    widgets::canvas::Canvas,
+};
+use tui::{
+    style::Color,
+    widgets::{canvas::Map, canvas::MapResolution, Block, Borders, Clear, Widget},
+};
+use tui::{widgets::canvas::Line, widgets::canvas::Rectangle, Terminal};
 
 pub fn setup_visualiser(
     rx: Receiver<ExecutionOutcome>,
@@ -38,9 +47,42 @@ pub fn setup_visualiser(
 
         terminal.draw(|f| {
             let size = f.size();
-            let block = Block::default().title("MARS").borders(Borders::ALL);
+            let core_display = Block::default().title("MARS").borders(Borders::ALL);
+            let canvas = Canvas::default()
+                .block(core_display)
+                .x_bounds([-180.0, 180.0])
+                .y_bounds([-90.0, 90.0])
+                .paint(|ctx| {
+                    ctx.draw(&Map {
+                        resolution: MapResolution::High,
+                        color: Color::White,
+                    });
+                    ctx.layer();
+                    ctx.draw(&Line {
+                        x1: 0.0,
+                        y1: 10.0,
+                        x2: 10.0,
+                        y2: 10.0,
+                        color: Color::White,
+                    });
+                    ctx.draw(&Rectangle {
+                        x: 10.0,
+                        y: 20.0,
+                        width: 10.0,
+                        height: 10.0,
+                        color: Color::Red,
+                    });
+                });
+            let metadata_display = Block::default().title("Info").borders(Borders::ALL);
 
-            f.render_widget(block, size);
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+                .split(size);
+
+            f.render_widget(canvas, chunks[0]);
+            f.render_widget(metadata_display, chunks[1]);
         })?;
     }
 

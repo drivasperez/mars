@@ -12,7 +12,6 @@ pub fn setup_controller(senders: Senders) -> crossterm::Result<()> {
     loop {
         match read()? {
             Event::Key(event) => {
-                println!("Detected a key: {:?}", event);
                 if match_key_event(event, &senders) {
                     break;
                 }
