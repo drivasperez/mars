@@ -1,6 +1,7 @@
 use crossbeam::channel;
 use crossbeam::thread;
 use mars::core::Core;
+use mars::warrior::Warrior;
 use rand::Rng;
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -9,7 +10,7 @@ mod controller;
 mod executor;
 mod visualiser;
 
-type TaskQueue<'a> = (usize, VecDeque<usize>);
+type TaskQueue<'a> = (Warrior, VecDeque<usize>);
 
 pub fn run_with_visualiser(core: Core) -> anyhow::Result<()> {
     let (tx, rx) = channel::bounded(100);
@@ -19,8 +20,9 @@ pub fn run_with_visualiser(core: Core) -> anyhow::Result<()> {
     let core_size = core.instructions().len();
     let task_queues: Vec<TaskQueue> = core
         .task_queues()
+        .to_owned()
         .iter()
-        .map(|(warrior, queue)| (warrior.len(), queue.clone()))
+        .map(|(warrior, queue)| ((*warrior).clone(), queue.to_owned()))
         .collect();
 
     let colours = core
@@ -49,7 +51,8 @@ pub fn run_with_visualiser(core: Core) -> anyhow::Result<()> {
             core_size,
             &task_queues,
             colours,
-        );
+        )
+        .expect("Couldn't unwrap visualiser result");
     })
     .map_err(|e| anyhow::anyhow!("Thread panic: {:?}", e))?;
 
