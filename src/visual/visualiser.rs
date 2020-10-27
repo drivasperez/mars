@@ -5,15 +5,18 @@ use mars::core::ExecutionOutcome;
 use std::collections::HashMap;
 use std::io::Stdout;
 use std::time::Duration;
-use tui::backend::{Backend, CrosstermBackend};
-use tui::widgets::canvas::{Context, Line, Rectangle};
+use tui::widgets::canvas::{Context, Points};
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    widgets::canvas::Rectangle,
+};
 use tui::{
     layout::{Constraint, Direction, Layout},
     widgets::canvas::Canvas,
 };
 use tui::{
     style::Color,
-    widgets::{canvas::Map, canvas::MapResolution, Block, Borders, Clear, Widget},
+    widgets::{Block, Borders},
     Terminal,
 };
 
@@ -27,24 +30,26 @@ enum VisualiserPixel {
     Executing,
 }
 
+fn get_warrior_color(colours: &ColorMap, name: Option<&str>) -> Color {
+    name.and_then(|name| colours.get(name))
+        .map(|&(r, g, b)| Color::Rgb(r, g, b))
+        .unwrap_or(Color::White)
+}
+
 fn generate_initial_grid(
     core_size: usize,
     task_queues: &[TaskQueue],
-    colours: ColorMap,
+    colours: &ColorMap,
 ) -> Vec<VisualiserPixel> {
     let mut visualised_core = vec![VisualiserPixel::Uninitialised; core_size];
 
     for (warrior, queues) in task_queues {
-        let color = warrior
-            .metadata
-            .name()
-            .and_then(|name| colours.get(name))
-            .map(|&(r, g, b)| Color::Rgb(r, g, b))
-            .unwrap_or(Color::White);
+        let color = get_warrior_color(&colours, warrior.metadata.name());
+
         let length = warrior.len();
 
         for &queue in queues {
-            for i in queue..queue + length {
+            for i in queue..(queue + length) {
                 visualised_core[i] = VisualiserPixel::Initialised(color);
             }
         }
@@ -53,21 +58,22 @@ fn generate_initial_grid(
     visualised_core
 }
 
-fn draw_grid(ctx: &mut Context, core: &[VisualiserPixel]) {
-    ctx.draw(&Line {
-        x1: 0.0,
-        y1: 10.0,
-        x2: 10.0,
-        y2: 10.0,
-        color: Color::White,
-    });
-    ctx.draw(&Rectangle {
-        x: 10.0,
-        y: 20.0,
-        width: 10.0,
-        height: 10.0,
-        color: Color::Red,
-    });
+fn draw_grid(ctx: &mut Context, core: &[VisualiserPixel], width: u16) {
+    for (i, &pixel) in core.iter().enumerate() {
+        let dest_x = i as u16 % width;
+        let dest_y = i as u16 / width;
+        ctx.draw(&Rectangle {
+            x: f64::from(dest_x),
+            y: f64::from(dest_y),
+            width: 1.0,
+            height: 1.0,
+            color: match pixel {
+                VisualiserPixel::Initialised(color) | VisualiserPixel::Touched(color) => color,
+                VisualiserPixel::Uninitialised => Color::Gray,
+                VisualiserPixel::Executing => Color::LightGreen,
+            },
+        });
+    }
 }
 
 pub fn setup_visualiser(
@@ -80,10 +86,9 @@ pub fn setup_visualiser(
 ) -> anyhow::Result<()> {
     let mut terminal = build_terminal()?;
 
-    let mut visualised_core = generate_initial_grid(core_size, task_queues, colours);
+    let mut visualised_core = generate_initial_grid(core_size, task_queues, &colours);
 
     loop {
-        let event = rx.recv()?;
         match controller_rx.try_recv() {
             Err(_) => {}
             Ok(ControllerMessage::Close) => {
@@ -105,7 +110,7 @@ pub fn setup_visualiser(
                 .block(core_display)
                 .x_bounds([0.0, f64::from(size.width)])
                 .y_bounds([0.0, f64::from(size.height)])
-                .paint(|ctx| draw_grid(ctx, &visualised_core));
+                .paint(|ctx| draw_grid(ctx, &visualised_core, size.width));
             let metadata_display = Block::default().title("Info").borders(Borders::ALL);
 
             let chunks = Layout::default()
@@ -118,115 +123,24 @@ pub fn setup_visualiser(
             f.render_widget(metadata_display, chunks[1]);
         })?;
 
+        let event = rx.recv()?;
+
+        match event {
+            ExecutionOutcome::Continue(change) => match change {
+                mars::core::CoreChange::WarriorPlayed(name, task_ptr, _opcode, dest_ptr) => {
+                    visualised_core[task_ptr - 1] = VisualiserPixel::Executing;
+                    visualised_core[dest_ptr - 1] =
+                        VisualiserPixel::Touched(get_warrior_color(&colours, Some(&name)));
+                }
+                mars::core::CoreChange::WarriorKilled(_) => {}
+            },
+            ExecutionOutcome::GameOver => break,
+        }
+
         std::thread::sleep(step_delay);
     }
 
     Ok(())
-
-    // let (width, _) = termion::terminal_size().expect("Couldn't get terminal size");
-    // let mut stdout = stdout();
-    // draw_initial_core(core_size, task_queues, &mut stdout, width);
-
-    // loop {
-    //     let event = rx.recv().expect("Couldn't get event from executor");
-    //     match controller_rx.try_recv() {
-    //         Err(_) => {}
-    //         Ok(ControllerMessage::Close) => {
-    //             break;
-    //         }
-    //         Ok(ControllerMessage::Paused) => {
-    //             if let ControllerMessage::Close =
-    //                 controller_rx.recv().expect("Couldn't get message")
-    //             {
-    //                 break;
-    //             }
-    //         }
-    //     }
-
-    //     match event {
-    //         ExecutionOutcome::GameOver => break,
-    //         ExecutionOutcome::Continue(change) => match change {
-    //             CoreChange::WarriorKilled(_) => {}
-    //             CoreChange::WarriorPlayed(name, task_ptr, _, dest_ptr) => {
-    //                 let (cx, cy, cz) = colours.get(&name).unwrap_or(&(255_u8, 255_u8, 255_u8));
-    //                 let dest_ptr = dest_ptr + 1;
-    //                 let dest_x = dest_ptr as u16 % width;
-    //                 let dest_y = dest_ptr as u16 / width;
-
-    //                 let task_ptr = task_ptr + 1;
-    //                 let task_x = task_ptr as u16 % width;
-    //                 let task_y = task_ptr as u16 / width;
-    //                 write!(
-    //                     stdout,
-    //                     "{}{}{}{}",
-    //                     Goto(dest_x, dest_y),
-    //                     termion::cursor::Hide,
-    //                     Rgb(*cx, *cy, *cz).fg_string(),
-    //                     '+'
-    //                 )
-    //                 .expect("Couldn't write to stdout");
-    //                 write!(
-    //                     stdout,
-    //                     "{}{}{}{}",
-    //                     Goto(task_x, task_y),
-    //                     termion::cursor::Hide,
-    //                     Rgb(*cx, *cy, *cz).fg_string(),
-    //                     '*'
-    //                 )
-    //                 .expect("Couldn't write to stdout");
-    //             }
-    //         },
-    //     }
-
-    //     stdout.flush().expect("Couldn't flush stdout");
-
-    //     std::thread::sleep(step_delay);
-    // }
-}
-
-fn draw_initial_core(core_size: usize, task_queues: &[TaskQueue], stdout: &mut Stdout, width: u16) {
-    // write!(stdout, "{}{}", termion::clear::All, termion::cursor::Hide)
-    //     .expect("Couldn't clear terminal");
-
-    // let warrior_spans: Vec<Range<u16>> = task_queues
-    //     .iter()
-    //     .flat_map(|(warrior_len, queue)| {
-    //         let warrior_len = *warrior_len as u16;
-    //         let ranges: Vec<Range<u16>> = queue
-    //             .iter()
-    //             .map(|&x| {
-    //                 let min = x as u16;
-    //                 let max = min + warrior_len;
-    //                 min..max
-    //             })
-    //             .collect();
-    //         ranges
-    //     })
-    //     .collect();
-
-    // for i in 1..=(core_size as u16) {
-    //     let x = i % width;
-    //     let y = i / width;
-
-    //     let mut ch = '.';
-    //     for range in &warrior_spans {
-    //         if range.contains(&i) {
-    //             ch = '+';
-    //         }
-    //     }
-
-    //     write!(
-    //         stdout,
-    //         "{}{}{}{}",
-    //         Goto(x, y),
-    //         termion::cursor::Hide,
-    //         Rgb(255, 255, 255).fg_string(),
-    //         ch
-    //     )
-    //     .expect("Couldn't write to stdout");
-    // }
-
-    // stdout.flush().expect("Couldn't flush stdout");
 }
 
 fn build_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>, std::io::Error> {
