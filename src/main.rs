@@ -43,9 +43,9 @@ fn load_warriors(warriors: Vec<String>) -> Result<Vec<Warrior>> {
             file.read_to_string(&mut contents)?;
             Ok(contents)
         })
-        .map(|s: Result<String>| {
-            let s = s?;
-            let warrior = Warrior::parse(&s)?;
+        .enumerate()
+        .map(|(i, s): (usize, Result<String>)| {
+            let warrior = Warrior::parse(&s?, i)?;
             Ok(warrior)
         })
         .collect()

@@ -190,8 +190,8 @@ impl Metadata {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Warrior {
     pub metadata: Metadata,
+    pub idx: usize,
     pub(crate) instructions: Vec<Instruction>,
-
     pub(crate) starts_at_line: usize,
 }
 
@@ -208,10 +208,10 @@ impl Display for Warrior {
 }
 
 impl Warrior {
-    pub fn parse(input: &str) -> Result<Warrior, Error> {
+    pub fn parse(input: &str, idx: usize) -> Result<Warrior, Error> {
         let input = replace_definitions(input).map_err(Error::Parse)?;
         let ls = crate::parser::parse(&input).map_err(Error::Parse)?;
-        Self::from_lines(ls).map_err(Error::Evaluate)
+        Self::from_lines(ls, idx).map_err(Error::Evaluate)
     }
 
     pub fn len(&self) -> usize {
@@ -222,7 +222,7 @@ impl Warrior {
         self.instructions.is_empty()
     }
 
-    fn from_lines(lines: Vec<Line>) -> Result<Warrior, EvaluateError> {
+    fn from_lines(lines: Vec<Line>, idx: usize) -> Result<Warrior, EvaluateError> {
         let mut metadata = Metadata::new();
         let (instructions, org_statements, metadata_values) = lines_by_type(lines);
         for line in metadata_values {
@@ -243,6 +243,7 @@ impl Warrior {
             instructions,
             metadata,
             starts_at_line,
+            idx,
         })
     }
 }
@@ -323,7 +324,7 @@ mod test {
     fn evaluate_dwarf_metadata() {
         let dwarf_str = include_str!("../warriors/dwarf.red");
 
-        let warrior = Warrior::parse(&dwarf_str).unwrap();
+        let warrior = Warrior::parse(&dwarf_str, 0).unwrap();
 
         assert_eq!(warrior.metadata.name().unwrap(), "Dwarf");
         assert_eq!(warrior.metadata.author().unwrap(), "A. K. Dewdney");
@@ -332,13 +333,13 @@ mod test {
 
         let bad_dwarf_str = include_str!("../warriors/bad_dwarf.red");
 
-        Warrior::parse(&bad_dwarf_str).unwrap_err();
+        Warrior::parse(&bad_dwarf_str, 0).unwrap_err();
     }
 
     #[test]
     fn evaluate_dwarf_lines() {
         let dwarf_str = include_str!("../warriors/dwarf.red");
-        let warrior = Warrior::parse(&dwarf_str).unwrap();
+        let warrior = Warrior::parse(&dwarf_str, 0).unwrap();
 
         assert_eq!(warrior.instructions.len(), 4);
 

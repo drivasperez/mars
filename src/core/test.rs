@@ -16,7 +16,7 @@ fn subtract() {
 
 #[test]
 fn build_and_run_imp() {
-    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+    let imp = Warrior::parse(include_str!("../../warriors/imp.red"), 0).unwrap();
     let warriors = vec![imp];
 
     let mut cb = CoreBuilder::new();
@@ -115,7 +115,7 @@ fn build_and_run_imp() {
 
 #[test]
 fn armadillo_builds() {
-    let armadillo = Warrior::parse(include_str!("../../warriors/armadillo.red")).unwrap();
+    let armadillo = Warrior::parse(include_str!("../../warriors/armadillo.red"), 0).unwrap();
     let warriors = vec![armadillo];
 
     let mut cb = CoreBuilder::new();
@@ -149,7 +149,7 @@ fn armadillo_builds() {
 
 #[test]
 fn imp_fight() {
-    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+    let imp = Warrior::parse(include_str!("../../warriors/imp.red"), 0).unwrap();
     let imp2 = imp.clone();
     let warriors = vec![imp.clone(), imp2.clone()];
 
@@ -166,7 +166,7 @@ fn imp_fight() {
 
 #[test]
 fn build_and_run_dwarf() {
-    let dwarf = Warrior::parse(include_str!("../../warriors/dwarf.red")).unwrap();
+    let dwarf = Warrior::parse(include_str!("../../warriors/dwarf.red"), 0).unwrap();
     let warriors = vec![dwarf.clone()];
 
     let mut cb = CoreBuilder::new();
@@ -222,7 +222,7 @@ fn build_and_run_dwarf() {
 
 #[test]
 fn build_and_run_stone() {
-    let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
+    let stone = Warrior::parse(include_str!("../../warriors/stone.red"), 0).unwrap();
     let warriors = vec![stone.clone()];
 
     let mut cb = CoreBuilder::new();
@@ -298,8 +298,8 @@ fn build_and_run_stone() {
 
 #[test]
 fn imp_gate_vs_imp() {
-    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
-    let imp_gate = Warrior::parse(include_str!("../../warriors/impgate.red")).unwrap();
+    let imp = Warrior::parse(include_str!("../../warriors/imp.red"), 0).unwrap();
+    let imp_gate = Warrior::parse(include_str!("../../warriors/impgate.red"), 0).unwrap();
     let warriors = vec![imp.clone(), imp_gate.clone()];
 
     let logger = crate::logger::DebugLogger::new();
@@ -316,8 +316,8 @@ fn imp_gate_vs_imp() {
 }
 #[test]
 fn wait_vs_armadillo() {
-    let armadillo = Warrior::parse(include_str!("../../warriors/armadillo.red")).unwrap();
-    let wait = Warrior::parse(include_str!("../../warriors/wait.red")).unwrap();
+    let armadillo = Warrior::parse(include_str!("../../warriors/armadillo.red"), 0).unwrap();
+    let wait = Warrior::parse(include_str!("../../warriors/wait.red"), 0).unwrap();
     let warriors = vec![armadillo.clone(), wait.clone()];
 
     let logger = crate::logger::DebugLogger::new();
@@ -336,9 +336,9 @@ fn wait_vs_armadillo() {
 
 #[test]
 fn stone_vs_dwarf_vs_imp() {
-    let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
-    let dwarf = Warrior::parse(include_str!("../../warriors/dwarf.red")).unwrap();
-    let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
+    let stone = Warrior::parse(include_str!("../../warriors/stone.red"), 0).unwrap();
+    let dwarf = Warrior::parse(include_str!("../../warriors/dwarf.red"), 0).unwrap();
+    let imp = Warrior::parse(include_str!("../../warriors/imp.red"), 0).unwrap();
     let warriors = vec![stone.clone(), imp.clone(), dwarf.clone()];
 
     let logger = crate::logger::DebugLogger::new();
