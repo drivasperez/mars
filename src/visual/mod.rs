@@ -29,13 +29,12 @@ pub fn run_with_visualiser(core: Core) -> anyhow::Result<()> {
         .task_queues()
         .iter()
         .map(|(warrior, _)| {
-            let name = warrior.metadata.name().unwrap_or_default();
             let mut rng = rand::thread_rng();
             let x = rng.gen_range(0, 255);
             let y = rng.gen_range(0, 255);
             let z = rng.gen_range(0, 255);
 
-            (name.to_owned(), (x, y, z))
+            (warrior.idx, (x, y, z))
         })
         .collect();
 

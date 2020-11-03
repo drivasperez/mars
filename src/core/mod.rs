@@ -19,8 +19,13 @@ pub enum ExecutionOutcome {
 
 #[derive(Debug)]
 pub enum CoreChange {
-    WarriorPlayed(String, usize, Opcode, usize),
-    WarriorKilled(String),
+    WarriorPlayed {
+        warrior_idx: usize,
+        task: usize,
+        opcode: Opcode,
+        destination_ptr: usize,
+    },
+    WarriorKilled(usize),
 }
 
 /// Like a warrior instruction, but its addresses are usize rather than i32
@@ -250,7 +255,7 @@ impl<'a> Core<'a> {
         // Unwrap because this function won't be run when empty... Maybe this is not true.
         let mut current = self.task_queues.pop_front().unwrap();
         let current_queue = &mut current.1;
-        let current_name = current.0.metadata.name().unwrap_or_default().to_owned();
+        let warrior_idx = current.0.idx;
 
         // Get the task, killing the warrior if it has no tasks.
         let task = match current_queue.pop_front() {
@@ -263,7 +268,7 @@ impl<'a> Core<'a> {
                 return if self.task_queues.len() <= 1 {
                     ExecutionOutcome::GameOver
                 } else {
-                    ExecutionOutcome::Continue(CoreChange::WarriorKilled(current_name))
+                    ExecutionOutcome::Continue(CoreChange::WarriorKilled(warrior_idx))
                 };
             }
         };
@@ -707,12 +712,12 @@ impl<'a> Core<'a> {
             return ExecutionOutcome::GameOver;
         };
 
-        ExecutionOutcome::Continue(CoreChange::WarriorPlayed(
-            current_name,
+        ExecutionOutcome::Continue(CoreChange::WarriorPlayed {
+            warrior_idx,
             task,
-            instruction_register.opcode,
+            opcode: instruction_register.opcode,
             destination_ptr,
-        ))
+        })
     }
 }
 

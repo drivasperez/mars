@@ -20,7 +20,7 @@ use tui::{
     Terminal,
 };
 
-type ColorMap = HashMap<String, (u8, u8, u8)>;
+type ColorMap = HashMap<usize, (u8, u8, u8)>;
 
 #[derive(Clone, Copy)]
 enum VisualiserPixel {
@@ -30,8 +30,9 @@ enum VisualiserPixel {
     Executing,
 }
 
-fn get_warrior_color(colours: &ColorMap, name: Option<&str>) -> Color {
-    name.and_then(|name| colours.get(name))
+fn get_warrior_color(colours: &ColorMap, idx: usize) -> Color {
+    colours
+        .get(&idx)
         .map(|&(r, g, b)| Color::Rgb(r, g, b))
         .unwrap_or(Color::White)
 }
@@ -44,7 +45,7 @@ fn generate_initial_grid(
     let mut visualised_core = vec![VisualiserPixel::Uninitialised; core_size];
 
     for (warrior, queues) in task_queues {
-        let color = get_warrior_color(&colours, warrior.metadata.name());
+        let color = get_warrior_color(&colours, warrior.idx);
 
         let length = warrior.len();
 
@@ -82,7 +83,7 @@ pub fn setup_visualiser(
     step_delay: Duration,
     core_size: usize,
     task_queues: &[TaskQueue],
-    colours: HashMap<String, (u8, u8, u8)>,
+    colours: ColorMap,
 ) -> anyhow::Result<()> {
     let mut terminal = build_terminal()?;
 
@@ -127,10 +128,15 @@ pub fn setup_visualiser(
 
         match event {
             ExecutionOutcome::Continue(change) => match change {
-                mars::core::CoreChange::WarriorPlayed(name, task_ptr, _opcode, dest_ptr) => {
-                    visualised_core[task_ptr - 1] = VisualiserPixel::Executing;
-                    visualised_core[dest_ptr - 1] =
-                        VisualiserPixel::Touched(get_warrior_color(&colours, Some(&name)));
+                mars::core::CoreChange::WarriorPlayed {
+                    warrior_idx,
+                    task,
+                    destination_ptr,
+                    ..
+                } => {
+                    visualised_core[task - 1] = VisualiserPixel::Executing;
+                    visualised_core[destination_ptr - 1] =
+                        VisualiserPixel::Touched(get_warrior_color(&colours, warrior_idx));
                 }
                 mars::core::CoreChange::WarriorKilled(_) => {}
             },
