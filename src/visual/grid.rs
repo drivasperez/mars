@@ -15,6 +15,7 @@ impl<'a, 'b> PlayGrid<'a, 'b> {
 
 impl<'a, 'b> Widget for PlayGrid<'a, 'b> {
     fn render(self, area: tui::layout::Rect, buf: &mut tui::buffer::Buffer) {
+        // see https://docs.rs/tui/0.12.0/src/tui/widgets/canvas/mod.rs.html#422-502 for impl example
         todo!()
     }
 }
