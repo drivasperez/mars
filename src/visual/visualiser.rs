@@ -1,11 +1,10 @@
-use super::controller::ControllerMessage;
 use super::TaskQueue;
+use super::{controller::ControllerMessage, ColorMap, VisualiserPixel};
 use crossbeam::channel::Receiver;
 use mars::core::ExecutionOutcome;
-use std::collections::HashMap;
 use std::io::Stdout;
 use std::time::Duration;
-use tui::widgets::canvas::{Context, Points};
+use tui::widgets::canvas::Context;
 use tui::{
     backend::{Backend, CrosstermBackend},
     widgets::canvas::Rectangle,
@@ -19,16 +18,6 @@ use tui::{
     widgets::{Block, Borders},
     Terminal,
 };
-
-type ColorMap = HashMap<usize, (u8, u8, u8)>;
-
-#[derive(Clone, Copy)]
-enum VisualiserPixel {
-    Uninitialised,
-    Initialised(Color),
-    Touched(Color),
-    Executing,
-}
 
 fn get_warrior_color(colours: &ColorMap, idx: usize) -> Color {
     colours

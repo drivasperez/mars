@@ -3,14 +3,26 @@ use crossbeam::thread;
 use mars::core::Core;
 use mars::warrior::Warrior;
 use rand::Rng;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
+use tui::style::Color;
 
 mod controller;
 mod executor;
+mod grid;
 mod visualiser;
 
 type TaskQueue<'a> = (Warrior, VecDeque<usize>);
+
+type ColorMap = HashMap<usize, (u8, u8, u8)>;
+
+#[derive(Clone, Copy)]
+enum VisualiserPixel {
+    Uninitialised,
+    Initialised(Color),
+    Touched(Color),
+    Executing,
+}
 
 pub fn run_with_visualiser(core: Core) -> anyhow::Result<()> {
     let (tx, rx) = channel::bounded(100);
