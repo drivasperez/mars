@@ -336,8 +336,8 @@ mod test {
 
     #[test]
     fn random_addresses() {
-        let imp = Warrior::parse(include_str!("../../warriors/imp.red")).unwrap();
-        let stone = Warrior::parse(include_str!("../../warriors/stone.red")).unwrap();
+        let imp = Warrior::parse(include_str!("../../warriors/imp.red"), 0).unwrap();
+        let stone = Warrior::parse(include_str!("../../warriors/stone.red"), 0).unwrap();
         let imp2 = imp.clone();
         let stone2 = stone.clone();
         let imp3 = imp.clone();

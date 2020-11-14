@@ -8,6 +8,8 @@ use std::path::Path;
 use std::{fs::File, io::Read};
 use structopt::StructOpt;
 
+mod visual;
+
 #[derive(StructOpt)]
 struct Opt {
     #[structopt(short, long)]
@@ -25,6 +27,10 @@ struct Opt {
     /// Run multiple matches in a single thread
     #[structopt(long)]
     single_threaded: bool,
+
+    /// Run once with visualiser
+    #[structopt(long = "visualiser", short = "v")]
+    with_visualiser: bool,
 }
 
 fn load_warriors(warriors: Vec<String>) -> Result<Vec<Warrior>> {
@@ -37,9 +43,9 @@ fn load_warriors(warriors: Vec<String>) -> Result<Vec<Warrior>> {
             file.read_to_string(&mut contents)?;
             Ok(contents)
         })
-        .map(|s: Result<String>| {
-            let s = s?;
-            let warrior = Warrior::parse(&s)?;
+        .enumerate()
+        .map(|(i, s): (usize, Result<String>)| {
+            let warrior = Warrior::parse(&s?, i)?;
             Ok(warrior)
         })
         .collect()
@@ -103,6 +109,7 @@ fn main() -> Result<(), Error> {
         core_size,
         matches,
         single_threaded,
+        with_visualiser,
     } = Opt::from_args();
 
     let mut builder = Core::builder();
@@ -112,7 +119,10 @@ fn main() -> Result<(), Error> {
 
     let warriors = load_warriors(warriors)?;
 
-    if matches == 1 {
+    if with_visualiser {
+        let core = builder.load_warriors(&warriors)?.build()?;
+        visual::run_with_visualiser(core)?;
+    } else if matches == 1 {
         let mut core = builder
             .load_warriors(&warriors)?
             .log_with(Box::new(DebugLogger::new()))
