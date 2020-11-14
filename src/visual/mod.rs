@@ -17,7 +17,7 @@ type TaskQueue<'a> = (Warrior, VecDeque<usize>);
 type ColorMap = HashMap<usize, (u8, u8, u8)>;
 
 #[derive(Clone, Copy)]
-enum VisualiserPixel {
+pub enum VisualiserPixel {
     Uninitialised,
     Initialised(Color),
     Touched(Color),
@@ -58,7 +58,7 @@ pub fn run_with_visualiser(core: Core) -> anyhow::Result<()> {
         visualiser::setup_visualiser(
             rx,
             visualiser_canceller_rx,
-            Duration::from_millis(4),
+            Duration::from_millis(1),
             core_size,
             &task_queues,
             colours,

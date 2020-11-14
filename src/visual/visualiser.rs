@@ -1,20 +1,15 @@
+use super::grid::PlayGrid;
 use super::TaskQueue;
 use super::{controller::ControllerMessage, ColorMap, VisualiserPixel};
 use crossbeam::channel::Receiver;
 use mars::core::ExecutionOutcome;
 use std::io::Stdout;
 use std::time::Duration;
-use tui::widgets::canvas::Context;
-use tui::{
-    backend::{Backend, CrosstermBackend},
-    widgets::canvas::Rectangle,
-};
-use tui::{
-    layout::{Constraint, Direction, Layout},
-    widgets::canvas::Canvas,
-};
+use tui::backend::{Backend, CrosstermBackend};
+use tui::layout::{Constraint, Direction, Layout};
 use tui::{
     style::Color,
+    text::Spans,
     widgets::{Block, Borders},
     Terminal,
 };
@@ -48,22 +43,10 @@ fn generate_initial_grid(
     visualised_core
 }
 
-fn draw_grid(ctx: &mut Context, core: &[VisualiserPixel], width: u16) {
-    for (i, &pixel) in core.iter().enumerate() {
-        let dest_x = i as u16 % width;
-        let dest_y = i as u16 / width;
-        ctx.draw(&Rectangle {
-            x: f64::from(dest_x),
-            y: f64::from(dest_y),
-            width: 1.0,
-            height: 1.0,
-            color: match pixel {
-                VisualiserPixel::Initialised(color) | VisualiserPixel::Touched(color) => color,
-                VisualiserPixel::Uninitialised => Color::Gray,
-                VisualiserPixel::Executing => Color::LightGreen,
-            },
-        });
-    }
+struct VisualiserState<'a> {
+    paused: bool,
+    tick: Duration,
+    info_messages: Vec<Spans<'a>>,
 }
 
 pub fn setup_visualiser(
@@ -74,6 +57,12 @@ pub fn setup_visualiser(
     task_queues: &[TaskQueue],
     colours: ColorMap,
 ) -> anyhow::Result<()> {
+    let mut state = VisualiserState {
+        paused: false,
+        tick: step_delay,
+        info_messages: Vec::new(),
+    };
+
     let mut terminal = build_terminal()?;
 
     let mut visualised_core = generate_initial_grid(core_size, task_queues, &colours);
@@ -85,22 +74,14 @@ pub fn setup_visualiser(
                 break;
             }
             Ok(ControllerMessage::Paused) => {
-                if let ControllerMessage::Close =
-                    controller_rx.recv().expect("Couldn't get message")
-                {
-                    break;
-                }
+                state.paused = !state.paused;
             }
         }
 
         terminal.draw(|f| {
             let size = f.size();
             let core_display = Block::default().title("MARS").borders(Borders::ALL);
-            let canvas = Canvas::default()
-                .block(core_display)
-                .x_bounds([0.0, f64::from(size.width)])
-                .y_bounds([0.0, f64::from(size.height)])
-                .paint(|ctx| draw_grid(ctx, &visualised_core, size.width));
+            let grid_view = PlayGrid::new(&visualised_core).block(core_display);
             let metadata_display = Block::default().title("Info").borders(Borders::ALL);
 
             let chunks = Layout::default()
@@ -109,30 +90,31 @@ pub fn setup_visualiser(
                 .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
                 .split(size);
 
-            f.render_widget(canvas, chunks[0]);
+            f.render_widget(grid_view, chunks[0]);
             f.render_widget(metadata_display, chunks[1]);
         })?;
 
-        let event = rx.recv()?;
-
-        match event {
-            ExecutionOutcome::Continue(change) => match change {
-                mars::core::CoreChange::WarriorPlayed {
-                    warrior_idx,
-                    task,
-                    destination_ptr,
-                    ..
-                } => {
-                    visualised_core[task - 1] = VisualiserPixel::Executing;
-                    visualised_core[destination_ptr - 1] =
-                        VisualiserPixel::Touched(get_warrior_color(&colours, warrior_idx));
-                }
-                mars::core::CoreChange::WarriorKilled(_) => {}
-            },
-            ExecutionOutcome::GameOver => break,
+        if !state.paused {
+            let event = rx.recv()?;
+            match event {
+                ExecutionOutcome::Continue(change) => match change {
+                    mars::core::CoreChange::WarriorPlayed {
+                        warrior_idx,
+                        task,
+                        destination_ptr,
+                        ..
+                    } => {
+                        visualised_core[task] = VisualiserPixel::Executing;
+                        visualised_core[destination_ptr] =
+                            VisualiserPixel::Touched(get_warrior_color(&colours, warrior_idx));
+                    }
+                    mars::core::CoreChange::WarriorKilled(_) => {}
+                },
+                ExecutionOutcome::GameOver => break,
+            }
         }
 
-        std::thread::sleep(step_delay);
+        std::thread::sleep(state.tick);
     }
 
     Ok(())

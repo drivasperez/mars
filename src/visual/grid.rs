@@ -1,21 +1,49 @@
-use tui::widgets::Widget;
+use tui::style::Color;
+use tui::widgets::{Block, Widget};
 
-use super::{ColorMap, VisualiserPixel};
+use super::VisualiserPixel;
 
-struct PlayGrid<'a, 'b> {
+pub struct PlayGrid<'a, 'b> {
     grid: &'a Vec<VisualiserPixel>,
-    colors: &'b ColorMap,
+    block: Option<Block<'b>>,
 }
 
 impl<'a, 'b> PlayGrid<'a, 'b> {
-    pub fn new(grid: &'a Vec<VisualiserPixel>, colors: &'b ColorMap) -> Self {
-        Self { grid, colors }
+    pub fn new(grid: &'a Vec<VisualiserPixel>) -> Self {
+        Self { grid, block: None }
+    }
+
+    pub fn block(mut self, block: Block<'b>) -> Self {
+        self.block = Some(block);
+        self
     }
 }
 
 impl<'a, 'b> Widget for PlayGrid<'a, 'b> {
-    fn render(self, area: tui::layout::Rect, buf: &mut tui::buffer::Buffer) {
-        // see https://docs.rs/tui/0.12.0/src/tui/widgets/canvas/mod.rs.html#422-502 for impl example
-        todo!()
+    fn render(mut self, area: tui::layout::Rect, buf: &mut tui::buffer::Buffer) {
+        let area = match self.block.take() {
+            Some(b) => {
+                let inner_area = b.inner(area);
+                b.render(area, buf);
+                inner_area
+            }
+            None => area,
+        };
+        let width = usize::from(area.width);
+        for (i, cell) in self.grid.iter().enumerate() {
+            let (color, ch) = match cell {
+                VisualiserPixel::Uninitialised => (Color::White, '.'),
+                VisualiserPixel::Initialised(c) => (*c, '-'),
+                VisualiserPixel::Touched(c) => (*c, '+'),
+                VisualiserPixel::Executing => (Color::LightRed, 'o'),
+            };
+
+            if ch != ' ' && ch != '\u{2800}' {
+                let (x, y) = (i % width, i / width);
+                buf.get_mut(x as u16 + area.left(), y as u16 + area.top())
+                    .set_char(ch)
+                    .set_fg(color);
+            }
+        }
     }
 }
