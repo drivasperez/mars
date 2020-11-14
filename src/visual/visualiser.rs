@@ -9,8 +9,8 @@ use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout};
 use tui::{
     style::Color,
-    text::Spans,
-    widgets::{Block, Borders},
+    text::{Span, Spans},
+    widgets::{Block, Borders, Paragraph},
     Terminal,
 };
 
@@ -75,6 +75,11 @@ pub fn setup_visualiser(
             }
             Ok(ControllerMessage::Paused) => {
                 state.paused = !state.paused;
+                let msg = match state.paused {
+                    true => "Paused",
+                    false => "Unpaused",
+                };
+                state.info_messages.push(Spans::from(vec![Span::raw(msg)]));
             }
         }
 
@@ -82,7 +87,8 @@ pub fn setup_visualiser(
             let size = f.size();
             let core_display = Block::default().title("MARS").borders(Borders::ALL);
             let grid_view = PlayGrid::new(&visualised_core).block(core_display);
-            let metadata_display = Block::default().title("Info").borders(Borders::ALL);
+            let metadata_display = Paragraph::new(state.info_messages.clone())
+                .block(Block::default().title("Info").borders(Borders::ALL));
 
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
